@@ -161,7 +161,11 @@ class DictationService {
 
   /// Begin listening. Emits partial transcripts as the user speaks, then one
   /// final result. The stream closes when recognition ends.
-  Stream<DictationResult> start() {
+  ///
+  /// [locale] is the app's language, not the phone's — see
+  /// `dictationLocaleProvider`. Getting it wrong does not fail loudly: the
+  /// recogniser happily transcribes Portuguese speech as English words.
+  Stream<DictationResult> start({required String locale}) {
     final controller = StreamController<DictationResult>();
 
     Future<void> begin() async {
@@ -217,6 +221,7 @@ class DictationService {
       try {
         await _methods.invokeMethod<void>('start', {
           'contextualStrings': _vocabulary.terms,
+          'locale': locale,
           'onDevice': true,
           'punctuation': true,
         });

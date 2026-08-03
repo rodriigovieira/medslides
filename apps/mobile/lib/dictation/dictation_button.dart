@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/app_localizations.dart';
+import '../l10n/labels.dart';
 import '../state/providers.dart';
 import '../theme/med_tokens.dart';
 import 'dictation_service.dart';
@@ -66,7 +68,9 @@ class _DictationButtonState extends ConsumerState<DictationButton> {
     _baseline = widget.controller.text.trimRight();
     setState(() => _listening = true);
 
-    _subscription = _service.start().listen(
+    _subscription = _service
+        .start(locale: ref.read(dictationLocaleProvider))
+        .listen(
       (result) {
         final joined =
             _baseline.isEmpty ? result.text : '$_baseline ${result.text}';
@@ -113,16 +117,8 @@ class _DictationButtonState extends ConsumerState<DictationButton> {
   }
 
   void _complain(DictationError error) {
-    final message = switch (error) {
-      DictationError.speechDenied =>
-        'Autorize o reconhecimento de fala nos Ajustes para ditar.',
-      DictationError.microphoneDenied =>
-        'Autorize o microfone nos Ajustes para ditar.',
-      DictationError.unavailable => 'Ditado não está disponível neste aparelho.',
-      DictationError.failed => 'Não consegui ouvir. Tente de novo.',
-    };
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(content: Text(AppLocalizations.of(context)!.dictationProblem(error))),
     );
   }
 
@@ -137,7 +133,9 @@ class _DictationButtonState extends ConsumerState<DictationButton> {
       height: MedSpace.tapTarget,
       child: IconButton.filled(
         onPressed: _toggle,
-        tooltip: _listening ? 'Parar' : 'Ditar',
+        tooltip: _listening
+            ? AppLocalizations.of(context)!.stopDictating
+            : AppLocalizations.of(context)!.dictate,
         style: IconButton.styleFrom(
           backgroundColor: _listening ? MedColors.signal : MedColors.clinical,
           foregroundColor: MedColors.paperRaised,
