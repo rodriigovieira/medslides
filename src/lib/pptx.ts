@@ -10,6 +10,7 @@ const INK_FAINT = "7D8896";
 const PAPER = "FFFEFB";
 const CLINICAL = "0D7A6F";
 const CLINICAL_DEEP = "085A52";
+const INK_DEEP = "0A141E";
 const SIGNAL = "C2603A";
 
 // LAYOUT_16x9 is 10 x 5.625 inches.
@@ -52,6 +53,17 @@ async function fetchImageData(url: string): Promise<string | null> {
   }
 }
 
+type Treatment = "full" | "panel" | "none";
+
+/** Mirrors `imageTreatment` in SlideView so the file matches the preview. */
+function treatmentFor(slide: Slide, hasImage: boolean): Treatment {
+  if (!hasImage) return "none";
+  if (slide.layout === "capa" || slide.layout === "secao") return "full";
+  if (slide.layout === "destaque") return "full";
+  if (slide.layout === "comparacao") return "none";
+  return "panel";
+}
+
 export async function exportPptx(deck: Deck) {
   const { default: PptxGenJS } = await import("pptxgenjs");
   const pptx = new PptxGenJS();
@@ -66,72 +78,91 @@ export async function exportPptx(deck: Deck) {
 
   deck.slides.forEach((slide, index) => {
     const image = images[index];
+    const treatment = treatmentFor(slide, Boolean(image));
+    const onDark = treatment === "full";
     const dark =
-      Boolean(image) ||
-      slide.layout === "secao" ||
-      slide.layout === "destaque";
-    const s = pptx.addSlide();
-    s.background = { color: dark ? CLINICAL_DEEP : PAPER };
+      onDark || slide.layout === "secao" || slide.layout === "destaque";
 
-    if (image) {
+    const s = pptx.addSlide();
+    s.background = { color: dark ? INK_DEEP : PAPER };
+
+    if (image && treatment === "full") {
       s.addImage({ data: image, x: 0, y: 0, w: W, h: H });
-      // PowerPoint shapes can't hold a CSS-style gradient, so approximate the
-      // web scrim with a light full-bleed wash plus a denser panel under the
-      // text. Neutral ink, never the brand green — see SlideView.
+      // PowerPoint shapes can't hold a CSS gradient, so the wash is a light
+      // full-bleed layer plus a denser band under the text.
       s.addShape("rect", {
         x: 0,
         y: 0,
         w: W,
         h: H,
-        fill: { color: "0A141E", transparency: 55 },
+        fill: { color: INK_DEEP, transparency: 42 },
         line: { type: "none" },
       });
-      s.addShape("rect", {
-        x: 0,
-        y: 0,
-        w: W * 0.62,
-        h: H,
-        fill: { color: "0A141E", transparency: 22 },
-        line: { type: "none" },
-      });
+      if (slide.layout === "capa") {
+        s.addShape("rect", {
+          x: 0,
+          y: H * 0.42,
+          w: W,
+          h: H * 0.58,
+          fill: { color: INK_DEEP, transparency: 18 },
+          line: { type: "none" },
+        });
+      } else {
+        s.addShape("rect", {
+          x: 0,
+          y: 0,
+          w: W * 0.62,
+          h: H,
+          fill: { color: INK_DEEP, transparency: 20 },
+          line: { type: "none" },
+        });
+      }
     }
 
-    renderSlide(s, slide, dark);
+    if (image && treatment === "panel") {
+      const panelW = W * 0.41;
+      s.addImage({ data: image, x: W - panelW, y: 0, w: panelW, h: H });
+    }
+
+    renderSlide(s, slide, dark, treatment);
 
     if (slide.layout !== "capa") {
       s.addShape("rect", {
         x: 0,
         y: 0,
-        w: 1.6,
-        h: 0.09,
+        w: 1.5,
+        h: 0.085,
         fill: { color: dark ? PAPER : CLINICAL },
         line: { type: "none" },
       });
       s.addText(`${index + 1} / ${deck.slides.length}`, {
         x: W - MARGIN - 1.2,
-        y: H - 0.55,
+        y: H - 0.52,
         w: 1.2,
         h: 0.3,
         align: "right",
         fontSize: 9,
         color: dark ? PAPER : INK_FAINT,
-        transparency: dark ? 40 : 0,
+        transparency: dark ? 45 : 0,
       });
     }
 
     if (slide.source) {
       s.addText(slide.source, {
         x: MARGIN,
-        y: H - 0.55,
+        y: H - 0.52,
         w: CONTENT_W - 1.4,
         h: 0.3,
         fontSize: 9,
         color: dark ? PAPER : INK_FAINT,
-        transparency: dark ? 40 : 0,
+        transparency: dark ? 45 : 0,
       });
     }
 
-    if (slide.notes) s.addNotes(slide.notes);
+    // CC0 requires no attribution, so the credit rides in the speaker notes
+    // rather than cluttering the slide.
+    const notes = [slide.notes, slide.imageCredit].filter(Boolean).join("\n\n");
+    if (notes) s.addNotes(notes);
   });
 
   await pptx.writeFile({ fileName: `${slugify(deck.title)}.pptx` });
@@ -141,7 +172,10 @@ function renderSlide(
   s: PptxSlide,
   slide: Slide,
   dark: boolean,
+  treatment: Treatment,
 ) {
+  // With a photo panel on the right, text has to stop before it.
+  const textW = treatment === "panel" ? W * 0.53 - MARGIN : CONTENT_W;
   const bulletText = (items: string[], opts: { fontSize: number }) =>
     items.map((text) => ({
       text,
@@ -156,32 +190,33 @@ function renderSlide(
 
   switch (slide.layout) {
     case "capa": {
+      const hasSub = Boolean(slide.subtitle);
       s.addShape("rect", {
         x: MARGIN,
-        y: 1.55,
-        w: 1.2,
-        h: 0.1,
+        y: hasSub ? 2.55 : 3.05,
+        w: 1.1,
+        h: 0.09,
         fill: { color: dark ? PAPER : CLINICAL },
         line: { type: "none" },
       });
       s.addText(slide.title, {
         x: MARGIN,
-        y: 1.85,
+        y: hasSub ? 2.8 : 3.3,
         w: CONTENT_W,
-        h: 1.6,
-        fontSize: 40,
+        h: 1.5,
+        fontSize: 38,
         bold: false,
         color: dark ? PAPER : INK,
         valign: "top",
-        lineSpacingMultiple: 1.05,
+        lineSpacingMultiple: 1.02,
       });
       if (slide.subtitle) {
         s.addText(slide.subtitle, {
           x: MARGIN,
-          y: 3.5,
-          w: CONTENT_W * 0.8,
-          h: 1,
-          fontSize: 15,
+          y: 4.35,
+          w: CONTENT_W * 0.72,
+          h: 0.7,
+          fontSize: 14,
           color: dark ? PAPER : INK_SOFT,
           valign: "top",
         });
@@ -193,9 +228,9 @@ function renderSlide(
       s.addText(slide.title, {
         x: MARGIN,
         y: 1.9,
-        w: CONTENT_W,
+        w: CONTENT_W * 0.68,
         h: 1.4,
-        fontSize: 34,
+        fontSize: 32,
         color: PAPER,
         valign: "top",
         lineSpacingMultiple: 1.1,
@@ -260,7 +295,7 @@ function renderSlide(
     }
 
     case "comparacao": {
-      addHeading(s, slide, dark);
+      addHeading(s, slide, dark, textW);
       const colW = (CONTENT_W - 0.6) / 2;
       [slide.left, slide.right].forEach((col, i) => {
         if (!col) return;
@@ -295,7 +330,7 @@ function renderSlide(
     }
 
     case "encerramento": {
-      addHeading(s, slide, dark);
+      addHeading(s, slide, dark, textW);
       (slide.bullets ?? []).forEach((b, i) => {
         const y = 2.2 + i * 0.62;
         s.addText(String(i + 1).padStart(2, "0"), {
@@ -310,7 +345,7 @@ function renderSlide(
         s.addText(b, {
           x: MARGIN + 0.55,
           y,
-          w: CONTENT_W - 0.55,
+          w: textW - 0.55,
           h: 0.6,
           fontSize: 14,
           color: dark ? PAPER : INK,
@@ -322,11 +357,11 @@ function renderSlide(
     }
 
     default: {
-      addHeading(s, slide, dark);
-      s.addText(bulletText(slide.bullets ?? [], { fontSize: 14 }), {
+      addHeading(s, slide, dark, textW);
+      s.addText(bulletText(slide.bullets ?? [], { fontSize: 13 }), {
         x: MARGIN,
         y: 2.15,
-        w: CONTENT_W,
+        w: textW,
         h: 2.8,
         valign: "top",
       });
@@ -334,11 +369,11 @@ function renderSlide(
   }
 }
 
-function addHeading(s: PptxSlide, slide: Slide, dark: boolean) {
+function addHeading(s: PptxSlide, slide: Slide, dark: boolean, textW: number) {
   s.addText(slide.title, {
     x: MARGIN,
     y: 0.75,
-    w: CONTENT_W,
+    w: textW,
     h: 0.95,
     fontSize: 24,
     color: dark ? PAPER : INK,
@@ -349,7 +384,7 @@ function addHeading(s: PptxSlide, slide: Slide, dark: boolean) {
     s.addText(slide.subtitle, {
       x: MARGIN,
       y: 1.65,
-      w: CONTENT_W * 0.85,
+      w: textW,
       h: 0.45,
       fontSize: 12,
       color: dark ? PAPER : INK_FAINT,

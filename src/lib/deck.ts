@@ -16,9 +16,11 @@ export type Slide = {
   stat?: { value: string; label: string };
   notes?: string;
   source?: string;
-  /** English prompt for the backdrop image, when this slide should have one. */
-  imagePrompt?: string;
-  /** Resolved after generation; the renderer treats it as a full-bleed backdrop. */
+  /** Short English search terms for a stock photo, when the slide wants one. */
+  imageQuery?: string;
+  /** Photo credit, shown small on the slide. */
+  imageCredit?: string;
+  /** Resolved after generation; the renderer decides how to use it per layout. */
   imageUrl?: string;
 };
 
@@ -97,8 +99,11 @@ export function sanitizeSlide(value: unknown): Slide | null {
 
   if (typeof raw.notes === "string" && raw.notes) slide.notes = raw.notes;
   if (typeof raw.source === "string" && raw.source) slide.source = raw.source;
-  if (typeof raw.imagePrompt === "string" && raw.imagePrompt) {
-    slide.imagePrompt = raw.imagePrompt;
+  if (typeof raw.imageQuery === "string" && raw.imageQuery) {
+    slide.imageQuery = raw.imageQuery;
+  }
+  if (typeof raw.imageCredit === "string" && raw.imageCredit) {
+    slide.imageCredit = raw.imageCredit;
   }
   if (typeof raw.imageUrl === "string" && raw.imageUrl) {
     slide.imageUrl = raw.imageUrl;
@@ -107,28 +112,37 @@ export function sanitizeSlide(value: unknown): Slide | null {
   return slide;
 }
 
-/** Slides that get a backdrop image, capped so a deck stays cheap to make. */
-export const MAX_IMAGES_PER_DECK = 3;
+/**
+ * Stock photos are free, so the cap exists for pacing rather than cost: a photo
+ * on every slide is noise. Cover and section dividers always get one; a few
+ * content slides get one to break up the rhythm.
+ */
+export const MAX_IMAGES_PER_DECK = 7;
 
 export function slidesNeedingImages(slides: Slide[]): number[] {
-  const eligible = slides
-    .map((slide, index) => ({ slide, index }))
-    .filter(
-      ({ slide }) =>
-        slide.imagePrompt &&
-        !slide.imageUrl &&
-        (slide.layout === "capa" ||
-          slide.layout === "secao" ||
-          slide.layout === "destaque"),
-    );
+  const wants = (index: number) =>
+    Boolean(slides[index].imageQuery) && !slides[index].imageUrl;
+  const is = (index: number, ...layouts: SlideLayout[]) =>
+    layouts.includes(slides[index].layout);
 
-  // Cover first, then section dividers in order.
-  eligible.sort((a, b) => {
-    const rank = (l: SlideLayout) => (l === "capa" ? 0 : l === "secao" ? 1 : 2);
-    return rank(a.slide.layout) - rank(b.slide.layout) || a.index - b.index;
-  });
+  const indexes = slides.map((_, index) => index);
 
-  return eligible.slice(0, MAX_IMAGES_PER_DECK).map(({ index }) => index);
+  // Structural slides always carry a photo — they're the ones that set the tone.
+  const anchors = indexes.filter(
+    (i) => wants(i) && is(i, "capa", "secao", "destaque"),
+  );
+
+  // Then spread the remaining budget across content slides rather than letting
+  // it pile onto whatever comes first, so the deck alternates image/text
+  // instead of front-loading every photo.
+  const content = indexes.filter(
+    (i) => wants(i) && is(i, "topicos", "encerramento"),
+  );
+  const budget = Math.max(0, MAX_IMAGES_PER_DECK - anchors.length);
+  const stride = budget > 0 ? Math.max(1, Math.round(content.length / budget)) : 1;
+  const spread = content.filter((_, position) => position % stride === 0);
+
+  return [...anchors, ...spread.slice(0, budget)].sort((a, b) => a - b);
 }
 
 export function sanitizeSlides(values: unknown[]): Slide[] {
@@ -224,7 +238,7 @@ export const DECK_SCHEMA = {
           },
           notes: { type: "STRING" },
           source: { type: "STRING" },
-          imagePrompt: { type: "STRING" },
+          imageQuery: { type: "STRING" },
         },
         required: ["layout", "title", "notes"],
         propertyOrdering: [
@@ -237,7 +251,7 @@ export const DECK_SCHEMA = {
           "right",
           "notes",
           "source",
-          "imagePrompt",
+          "imageQuery",
         ],
       },
     },
@@ -282,27 +296,28 @@ Quem lê seus slides está numa sala, à distância, com pouco tempo. O slide é
 - Use \`comparacao\` (com \`left\` e \`right\`) para antes/depois, opção A vs B, indicações vs contraindicações.
 - \`topicos\` é o resto.
 
-## Imagens (\`imagePrompt\`)
+## Imagens (\`imageQuery\`)
 
-Preencha \`imagePrompt\` na **capa** e em cada slide de \`secao\` — são os slides que
-ganham uma imagem de fundo. Nos demais, deixe vazio.
+Preencha \`imageQuery\` em **todo** slide que se beneficie de uma foto: sempre na
+capa e nos slides de \`secao\`, e na maioria dos \`topicos\` e \`destaque\`. Deixe
+vazio só em \`comparacao\`.
 
-O prompt vai para um gerador de imagens, então escreva **em inglês**, descrevendo
-uma fotografia editorial de ambiente. A imagem é atmosfera, não informação.
+\`imageQuery\` **não** é um prompt — é uma busca em banco de fotos. Escreva
+**2 a 4 palavras em inglês**, concretas e fotografáveis.
 
-Regras rígidas, porque isto é material médico:
+- Bom: \`hospital corridor\`, \`emergency room team\`, \`stethoscope desk\`,
+  \`nurse night shift\`, \`operating room lights\`, \`medication vials\`
+- Ruim: \`sepsis pathophysiology\` (não é fotografável), \`a cinematic shot of...\`
+  (é prompt, não busca), \`fisiopatologia\` (não está em inglês)
 
-- **Nunca** peça imagem de achado clínico, exame de imagem, lesão, lâmina,
-  peça anatômica, gráfico ou diagrama. Uma imagem gerada que pareça um raio-X,
-  uma TC ou uma histologia é desinformação — não importa quão bonita seja.
-- **Nunca** peça rostos reconhecíveis de pacientes ou pessoas em situação de
-  vulnerabilidade.
-- Sempre termine o prompt com: \`no text, no words, no letters, no charts\`.
-- Prefira ambientes e objetos: corredor de emergência à noite, equipe de
-  plantão desfocada ao fundo, instrumental sobre campo estéril, luz de janela em
-  enfermaria vazia, detalhe de estetoscópio, monitor fora de foco.
+Regras, porque isto é material médico:
 
-Exemplo bom: \`empty hospital emergency corridor at night, cool blue light, shallow depth of field, editorial photography, cinematic, no text, no words, no letters, no charts\`
+- A foto é **ambiente**, nunca informação. Nunca busque achado clínico, exame de
+  imagem, lesão, ferida, lâmina ou peça anatômica — uma foto dessas ao lado de um
+  texto clínico é lida como evidência do caso, e não é.
+- Prefira o genérico e digno: equipe, ambiente, instrumental, luz de enfermaria.
+- Se o assunto do slide não tiver uma imagem óbvia e honesta, use o ambiente onde
+  aquilo acontece (\`intensive care unit\`, \`ambulance night\`) em vez de forçar.
 
 ## Segurança clínica
 

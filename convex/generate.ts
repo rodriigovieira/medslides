@@ -8,7 +8,15 @@ import { sanitizeSlides, slidesNeedingImages } from "../src/lib/deck";
 import type { Slide } from "../src/lib/deck";
 import { parsePartialDeck } from "../src/lib/partial";
 import { generateDeckText } from "./lib/ai";
-import { generateImage, isSafeImagePrompt } from "./lib/images";
+import {
+  FALLBACK_QUERIES,
+  creditLine,
+  downloadImage,
+  isSafeImageQuery,
+  normalizeQuery,
+  searchStock,
+  type StockImage,
+} from "./lib/stock";
 
 /** Don't write to the deck more than this often while streaming. */
 const PROGRESS_INTERVAL_MS = 500;
@@ -71,7 +79,7 @@ export const run = internalAction({
 
       // Images come after the text is committed, so a slow or failing image
       // provider never delays — or breaks — a finished deck.
-      await attachImages(ctx, deckId, parsed.slides);
+      await attachImages(ctx, deckId, parsed.slides, req.topic);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Falha ao gerar os slides.";
@@ -91,28 +99,28 @@ export const run = internalAction({
 });
 
 /**
- * Ops helper: exercises the image path end to end and returns what happened.
- * Image failures are deliberately non-fatal in `run`, which makes them
- * invisible — this is how you find out why a deck came back without art.
- *   npx convex run --prod generate:diagnoseImage '{}'
+ * Ops helper: exercises the stock-photo path and reports where it stopped.
+ * Image failures are non-fatal by design, which makes them invisible.
+ *   npx convex run --prod generate:diagnoseImage '{"query":"hospital corridor"}'
  */
 export const diagnoseImage = internalAction({
-  args: { prompt: v.optional(v.string()) },
-  handler: async (ctx, { prompt }) => {
-    const test =
-      prompt ?? "empty hospital corridor at night, cool light, editorial";
-    const steps: string[] = [];
-    steps.push(`FAL_KEY presente: ${Boolean(process.env.FAL_KEY)}`);
-    steps.push(`prompt seguro: ${isSafeImagePrompt(test)}`);
-
+  args: { query: v.optional(v.string()) },
+  handler: async (ctx, { query }) => {
+    const q = normalizeQuery(query ?? "hospital corridor");
+    const steps: string[] = [`query: ${q}`, `segura: ${isSafeImageQuery(q)}`];
     try {
-      const image = await generateImage(test);
-      steps.push(`imagem gerada: ${image ? `${image.bytes.byteLength} bytes` : "null"}`);
-      if (image) {
-        const storageId = await ctx.storage.store(
-          new Blob([image.bytes], { type: image.contentType }),
-        );
-        steps.push(`storageId: ${storageId}`);
+      const results = await searchStock(q);
+      steps.push(`resultados: ${results.length}`);
+      if (results[0]) {
+        steps.push(`primeira: ${results[0].url}`);
+        const file = await downloadImage(results[0].url);
+        steps.push(`download: ${file ? `${file.bytes.byteLength} bytes` : "null"}`);
+        if (file) {
+          const storageId = await ctx.storage.store(
+            new Blob([file.bytes], { type: file.contentType }),
+          );
+          steps.push(`storageId: ${storageId}`);
+        }
       }
     } catch (error) {
       steps.push(`ERRO: ${error instanceof Error ? error.stack : String(error)}`);
@@ -121,34 +129,88 @@ export const diagnoseImage = internalAction({
   },
 });
 
+/**
+ * Resolves one search through the Convex cache. Openverse allows 200 anonymous
+ * requests a day, so a deck must never search once per slide.
+ */
+async function cachedSearch(
+  ctx: ActionCtx,
+  rawQuery: string,
+): Promise<StockImage[]> {
+  const query = normalizeQuery(rawQuery);
+  if (!query || !isSafeImageQuery(query)) return [];
+
+  const cached = await ctx.runQuery(internal.images.readCache, { query });
+  if (cached) return cached;
+
+  const results = await searchStock(query);
+  // Cache misses too: a query that found nothing shouldn't be retried by every
+  // later deck on the same topic.
+  await ctx.runMutation(internal.images.writeCache, { query, results });
+  return results;
+}
+
 async function attachImages(
   ctx: ActionCtx,
   deckId: Id<"decks">,
   slides: Slide[],
+  topic: string,
 ) {
   const targets = slidesNeedingImages(slides);
   if (targets.length === 0) return;
 
-  await Promise.all(
-    targets.map(async (slideIndex) => {
-      const prompt = slides[slideIndex]?.imagePrompt;
-      if (!prompt) return;
-      try {
-        const image = await generateImage(prompt);
-        if (!image) return;
-        const storageId = await ctx.storage.store(
-          new Blob([image.bytes], { type: image.contentType }),
-        );
-        await ctx.runMutation(internal.decks.attachImage, {
-          deckId,
-          slideIndex,
-          storageId,
-        });
-      } catch (error) {
-        console.warn(`Imagem do slide ${slideIndex} falhou: ${String(error)}`);
+  // One search per distinct query, then a widening set of fallbacks so a niche
+  // topic still ends up with something rather than a bare slide.
+  const queries = [
+    ...new Set(targets.map((i) => slides[i].imageQuery ?? "").filter(Boolean)),
+  ];
+  const pools = new Map<string, StockImage[]>();
+  for (const query of queries) {
+    pools.set(query, await cachedSearch(ctx, query));
+  }
+
+  // StockSnap is curated, so a single query often yields only a handful of
+  // usable photos — and the dedupe below drains that fast. Always build the
+  // shared fallback pool; the cache makes it nearly free after the first deck.
+  const fallback: StockImage[] = [];
+  for (const query of [topic, ...FALLBACK_QUERIES]) {
+    if (fallback.length >= targets.length * 3) break;
+    fallback.push(...(await cachedSearch(ctx, query)));
+  }
+
+  // Don't repeat a photo inside one deck — the same corridor twice reads as a
+  // bug even when each slide picked it independently.
+  const used = new Set<string>();
+  const pick = (query: string): StockImage | null => {
+    for (const pool of [pools.get(query) ?? [], fallback]) {
+      const found = pool.find((image) => !used.has(image.url));
+      if (found) {
+        used.add(found.url);
+        return found;
       }
-    }),
-  );
+    }
+    return null;
+  };
+
+  for (const slideIndex of targets) {
+    const image = pick(slides[slideIndex].imageQuery ?? "");
+    if (!image) continue;
+    try {
+      const file = await downloadImage(image.url);
+      if (!file) continue;
+      const storageId = await ctx.storage.store(
+        new Blob([file.bytes], { type: file.contentType }),
+      );
+      await ctx.runMutation(internal.decks.attachImage, {
+        deckId,
+        slideIndex,
+        storageId,
+        credit: creditLine(image),
+      });
+    } catch (error) {
+      console.warn(`Imagem do slide ${slideIndex} falhou: ${String(error)}`);
+    }
+  }
 }
 
 function parseFinal(text: string) {

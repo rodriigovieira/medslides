@@ -23,6 +23,14 @@ export const slideValidator = v.object({
   stat: v.optional(v.object({ value: v.string(), label: v.string() })),
   notes: v.optional(v.string()),
   source: v.optional(v.string()),
+  // Short English search terms for stock photography.
+  imageQuery: v.optional(v.string()),
+  imageCredit: v.optional(v.string()),
+  /**
+   * Legacy: decks generated before the switch from AI image generation to stock
+   * photography carry this. Nothing writes it any more, but removing it from the
+   * validator would fail the schema push against those existing rows.
+   */
   imagePrompt: v.optional(v.string()),
   // Stored in Convex file storage; `decks.get` resolves it to a URL so the
   // client and the .pptx exporter never deal with storage ids.
@@ -57,6 +65,24 @@ export default defineSchema({
   })
     .index("by_client", ["clientId", "createdAt"])
     .index("by_created", ["createdAt"]),
+
+  // Openverse allows 200 anonymous requests/day, well under our deck ceiling,
+  // so every search is cached by normalized query and reused across decks.
+  imageCache: defineTable({
+    query: v.string(),
+    results: v.array(
+      v.object({
+        url: v.string(),
+        width: v.number(),
+        height: v.number(),
+        title: v.string(),
+        creator: v.string(),
+        sourceUrl: v.string(),
+        license: v.string(),
+      }),
+    ),
+    fetchedAt: v.number(),
+  }).index("by_query", ["query"]),
 
   // Anonymous product, so the only spend guards are a per-browser quota and a
   // global daily ceiling. Both are best-effort: clientId is client-generated.

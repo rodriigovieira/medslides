@@ -160,11 +160,16 @@ export function DeckWorkspace({
                 <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-ink-soft">
                   {slide.notes || "—"}
                 </p>
-                {slide.source && (
-                  <p className="mt-4 border-t border-rule pt-3 text-sm text-ink-faint">
-                    Referência citada: {slide.source} — confirme antes de
-                    apresentar.
-                  </p>
+                {(slide.source || slide.imageCredit) && (
+                  <div className="mt-4 space-y-1 border-t border-rule pt-3 text-sm text-ink-faint">
+                    {slide.source && (
+                      <p>
+                        Referência citada: {slide.source} — confirme antes de
+                        apresentar.
+                      </p>
+                    )}
+                    {slide.imageCredit && <p>{slide.imageCredit}</p>}
+                  </div>
                 )}
               </div>
             </>

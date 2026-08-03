@@ -10,8 +10,9 @@
 
 import type * as decks from "../decks.js";
 import type * as generate from "../generate.js";
+import type * as images from "../images.js";
 import type * as lib_ai from "../lib/ai.js";
-import type * as lib_images from "../lib/images.js";
+import type * as lib_stock from "../lib/stock.js";
 
 import type {
   ApiFromModules,
@@ -22,8 +23,9 @@ import type {
 declare const fullApi: ApiFromModules<{
   decks: typeof decks;
   generate: typeof generate;
+  images: typeof images;
   "lib/ai": typeof lib_ai;
-  "lib/images": typeof lib_images;
+  "lib/stock": typeof lib_stock;
 }>;
 
 /**
