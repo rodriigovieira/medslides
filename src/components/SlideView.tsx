@@ -9,7 +9,6 @@ import {
 } from "@/lib/deck";
 import { fitSlide, sized } from "@/lib/fit";
 import { scrimFor, treatmentFor } from "@/lib/compose";
-import { stage } from "@/lib/motion";
 import { Editable, type EditHandler } from "./Editable";
 import { useSlideMarks } from "./Motion";
 
@@ -264,7 +263,7 @@ function Body({
         <div className="flex h-full flex-col justify-end pb-[2cqw]">
           <div
             className={`mb-[3.2cqw] h-[0.9cqw] w-[11cqw] ${rule}`}
-            {...marks.build(stage(0))}
+            {...marks.build(0)}
           />
           <Editable
             as="div"
@@ -272,7 +271,7 @@ function Body({
             editable={editable}
             onCommit={(next) => onEdit?.({ title: next })}
             className="max-w-[80cqw] font-[family-name:var(--font-display)] text-[6.8cqw] leading-[1.02] tracking-tight"
-            marks={{ ...marks.build(stage(1)), ...marks.shared(slide.title) }}
+            marks={{ ...marks.build(1), ...marks.key, ...marks.shared(slide.title) }}
           />
           {slide.subtitle && (
             <Editable
@@ -281,7 +280,7 @@ function Body({
               editable={editable}
               onCommit={(next) => onEdit?.({ subtitle: next })}
               className={`mt-[2.6cqw] max-w-[62cqw] text-[2.5cqw] leading-snug ${muted}`}
-              marks={marks.build(stage(2))}
+              marks={marks.build(2)}
             />
           )}
         </div>
@@ -300,7 +299,7 @@ function Body({
             // titles itself with it. That is the "the section title becomes the
             // slide title" move, and it is the one text match that pays off
             // often enough to be worth having.
-            marks={{ ...marks.build(stage(0)), ...marks.shared(slide.title) }}
+            marks={{ ...marks.build(0), ...marks.key, ...marks.shared(slide.title) }}
           />
           {slide.subtitle && (
             <Editable
@@ -309,7 +308,7 @@ function Body({
               editable={editable}
               onCommit={(next) => onEdit?.({ subtitle: next })}
               className={`mt-[2.4cqw] max-w-[60cqw] text-[2.3cqw] leading-snug ${muted}`}
-              marks={marks.build(stage(1))}
+              marks={marks.build(1)}
             />
           )}
         </div>
@@ -324,7 +323,7 @@ function Body({
             editable={editable}
             onCommit={(next) => onEdit?.({ title: next })}
             className={`max-w-[62cqw] text-[2.1cqw] font-medium uppercase leading-snug tracking-[0.16em] ${faint}`}
-            marks={marks.build(stage(0))}
+            marks={marks.build(0)}
           />
           {slide.stat && (
             <>
@@ -340,7 +339,8 @@ function Body({
                 // as a diagram hub, or a heading — it flies there at 13cqw and
                 // shrinks into place instead of blinking out and back.
                 marks={{
-                  ...marks.build(stage(1)),
+                  ...marks.build(1),
+                  ...marks.stat,
                   ...marks.shared(slide.stat.value),
                 }}
               />
@@ -352,7 +352,7 @@ function Body({
                   onEdit?.({ stat: { value: slide.stat!.value, label: next } })
                 }
                 className={`mt-[1.8cqw] max-w-[58cqw] text-[2.7cqw] leading-snug ${muted}`}
-                marks={marks.build(stage(2))}
+                marks={marks.build(2)}
               />
             </>
           )}
@@ -362,7 +362,7 @@ function Body({
                 <li
                   key={i}
                   className={`max-w-[58cqw] text-[2cqw] leading-snug ${muted}`}
-                  {...marks.build(stage(3 + i))}
+                  {...marks.build(3 + i)}
                 >
                   {b}
                 </li>
@@ -383,7 +383,7 @@ function Body({
                 // each column arrives whole. Staggering inside them would make
                 // the audience read down the left while the right is still
                 // filling in, which is the opposite of the point.
-                <div key={i} {...marks.build(stage(1 + i))}>
+                <div key={i} {...marks.build(1 + i)}>
                   <div className={`h-[0.4cqw] w-full ${rule}`} />
                   <h3
                     style={{ fontSize: sized(2.3, scale) }}
@@ -422,7 +422,7 @@ function Body({
             style={{ display: "grid", gap: sized(2, scale) }}
           >
             {bullets.map((b, i) => (
-              <li key={i} className="flex gap-[1.8cqw]" {...marks.build(stage(2 + i))}>
+              <li key={i} className="flex gap-[1.8cqw]" {...marks.build(2 + i)}>
                 <span
                   className="mt-[0.5cqw] font-[family-name:var(--font-display)] leading-none text-signal tabular-nums"
                   style={{ fontSize: sized(2.4, scale) }}
@@ -452,7 +452,7 @@ function Body({
             style={{ display: "grid", gap: sized(1.9, scale) }}
           >
             {bullets.map((b, i) => (
-              <li key={i} className="flex gap-[1.8cqw]" {...marks.build(stage(2 + i))}>
+              <li key={i} className="flex gap-[1.8cqw]" {...marks.build(2 + i)}>
                 <span
                   className={`mt-[1.1cqw] h-[0.7cqw] w-[0.7cqw] shrink-0 rounded-full ${
                     dark ? "bg-paper/80" : "bg-clinical"
@@ -498,7 +498,7 @@ function SlideTitle({
         placeholder="Título do slide"
         className="font-[family-name:var(--font-display)] leading-[1.12] tracking-tight"
         style={{ fontSize: sized(4.2, scale) }}
-        marks={{ ...marks.build(stage(0)), ...marks.shared(title) }}
+        marks={{ ...marks.build(0), ...marks.key, ...marks.shared(title) }}
       />
       {subtitle && (
         <Editable
@@ -511,7 +511,7 @@ function SlideTitle({
             dark ? "text-paper/70" : "text-ink-faint"
           }`}
           style={{ fontSize: sized(2, scale) }}
-          marks={marks.build(stage(1))}
+          marks={marks.build(1)}
         />
       )}
     </div>

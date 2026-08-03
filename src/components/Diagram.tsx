@@ -1,5 +1,5 @@
 import type { DiagramNode, Slide } from "@/lib/deck";
-import { HERO_HANDOFF_MS, stage } from "@/lib/motion";
+import { HERO_HANDOFF_MS } from "@/lib/motion";
 import { useSlideMarks } from "./Motion";
 
 /**
@@ -122,7 +122,13 @@ function Mechanism({
   // The hub opens centre-stage, then moves left and shrinks while the branches
   // arrive on the right — the gesture the whole feature was asked for. Without a
   // hub there is nothing to hand off from, so the branches lead instead.
-  const base = slide.hub ? HERO_HANDOFF_MS : stage(1);
+  //
+  // `base` is a wall-clock hand-off (it has to line up with the hub's flight,
+  // which is a duration) while `first` is an ordinal (it scales with whatever
+  // stagger the preset asks for). Keeping them separate is why `buildMark` takes
+  // two arguments.
+  const base = slide.hub ? HERO_HANDOFF_MS : 0;
+  const first = slide.hub ? 0 : 1;
 
   return (
     <div className="flex flex-1 items-stretch gap-[1.4cqw]" {...marks.heroStage}>
@@ -145,7 +151,7 @@ function Mechanism({
       )}
 
       {slide.hub && (
-        <Arrow direction="right" dark={dark} marks={marks.build(base)} />
+        <Arrow direction="right" dark={dark} marks={marks.build(first, base)} />
       )}
 
       <div className="flex flex-1 flex-col justify-center gap-[1.3cqw]">
@@ -162,7 +168,7 @@ function Mechanism({
               node={node}
               dark={dark}
               marks={{
-                ...marks.build(stage(i, base)),
+                ...marks.build(first + i, base),
                 ...marks.shared(node.heading),
               }}
             />
@@ -174,11 +180,11 @@ function Mechanism({
             <Arrow
               direction="down"
               dark={dark}
-              marks={marks.build(stage(branches.length, base))}
+              marks={marks.build(first + branches.length, base)}
             />
             <div
               className={`rounded-[0.9cqw] ${c.accent} px-[2cqw] py-[1.2cqw] text-center`}
-              {...marks.build(stage(branches.length + 1, base))}
+              {...marks.build(first + branches.length + 1, base)}
               {...marks.shared(slide.outcome)}
             >
               <span
@@ -210,7 +216,7 @@ function Flow({ nodes, dark }: { nodes: DiagramNode[]; dark: boolean }) {
         <div
           key={i}
           className="flex min-w-0 flex-1 items-center gap-[1cqw]"
-          {...marks.build(stage(1 + i))}
+          {...marks.build(1 + i)}
         >
           <div className="min-w-0 flex-1">
             <div
@@ -257,7 +263,7 @@ function Cards({ nodes, dark }: { nodes: DiagramNode[]; dark: boolean }) {
           node={node}
           dark={dark}
           marks={{
-            ...marks.build(stage(1 + i)),
+            ...marks.build(1 + i),
             ...marks.shared(node.heading),
           }}
         />

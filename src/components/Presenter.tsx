@@ -10,6 +10,7 @@ import {
 import type { Deck } from "@/lib/deck";
 import {
   playSlideMotion,
+  resolvePlan,
   snapshotSlide,
   stopSlideMotion,
   type SlideRects,
@@ -35,6 +36,7 @@ export function Presenter({ deck, onExit }: { deck: Deck; onExit: () => void }) 
 
   const total = deck.slides.length;
   const slide = deck.slides[index];
+  const plan = resolvePlan(slide?.animation);
 
   // Auto-hide the controls while presenting; any interaction brings them back.
   const wakeChrome = useCallback(() => {
@@ -62,10 +64,20 @@ export function Presenter({ deck, onExit }: { deck: Deck; onExit: () => void }) 
   // animations in the frame React committed it, so nothing is ever painted in
   // the wrong place first. On the first slide `leaving` is null and it is a
   // build with no move.
+  //
+  // The plan is read off the slide arriving, not the one leaving: a preset is a
+  // statement about how this slide should appear. It is in the deps by its two
+  // resolved strings rather than by `slide`, so a photo landing mid-talk does
+  // not replay the build — but asking the editor for a preset *does* play it
+  // once, immediately, which is the only honest way to show what was chosen.
   useLayoutEffect(() => {
-    playSlideMotion(stageRef.current, leaving.current);
+    playSlideMotion(stageRef.current, leaving.current, plan);
     leaving.current = null;
-  }, [index]);
+    // Depending on `plan` itself would replay on every Convex push, because
+    // `resolvePlan` returns a fresh object each render; the two strings inside
+    // it are the whole of what this effect reads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, plan.preset, plan.pace]);
 
   // Arms the first auto-hide. Every later wake comes from an interaction
   // handler, so nothing sets state synchronously inside an effect.
@@ -123,6 +135,11 @@ export function Presenter({ deck, onExit }: { deck: Deck; onExit: () => void }) 
             so the slide never overflows behind the controls. */}
         <div
           ref={stageRef}
+          // Marks the exact subtree motion owns. The presenter's own chrome sits
+          // outside it and has ordinary CSS transitions of its own; without a
+          // boundary, `getAnimations({ subtree: true })` on any ancestor returns
+          // the chrome fading as though it were slide motion.
+          data-stage=""
           className="w-full px-0 sm:px-6 md:max-w-[min(100%,calc((100vh-11rem)*16/9))]"
         >
           <SlideStage>

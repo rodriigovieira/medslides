@@ -6,6 +6,8 @@ import {
   heroMark,
   heroStageMark,
   imageKey,
+  keyMark,
+  statMark,
   textKey,
   type Marks,
 } from "@/lib/motion";
@@ -29,8 +31,12 @@ export function SlideStage({ children }: { children: ReactNode }) {
 const NONE: Marks = {};
 
 export type SlideMarks = {
-  /** Fades this element in after `delayMs`. See `stage()` for the ordering. */
-  build: (delayMs: number) => Marks;
+  /**
+   * Stages this element as the `index`-th thing to arrive, optionally not before
+   * `baseMs`. The preset decides how far apart that actually is — components
+   * never name a preset or a duration.
+   */
+  build: (index: number, baseMs?: number) => Marks;
   /** Offers this text as a match for the same text on the next slide. */
   shared: (text: string | undefined | null) => Marks;
   /** Offers this photo as a match, keyed on its exact URL. */
@@ -39,17 +45,24 @@ export type SlideMarks = {
   hero: Marks;
   /** The box the hero is centred in. */
   heroStage: Marks;
+  /** The big number on `destaque` — what `numero` zooms. */
+  stat: Marks;
+  /** The slide's headline element, the fallback target for `destacar`. */
+  key: Marks;
 };
 
 export function useSlideMarks(): SlideMarks {
   const on = useContext(OnStage);
   return useMemo(
     () => ({
-      build: (delayMs: number) => (on ? buildMark(delayMs) : NONE),
+      build: (index: number, baseMs = 0) =>
+        on ? buildMark(index, baseMs) : NONE,
       shared: (text: string | undefined | null) => (on ? textKey(text) : NONE),
       sharedImage: (url: string | undefined) => (on ? imageKey(url) : NONE),
       hero: on ? heroMark : NONE,
       heroStage: on ? heroStageMark : NONE,
+      stat: on ? statMark : NONE,
+      key: on ? keyMark : NONE,
     }),
     [on],
   );

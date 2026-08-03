@@ -44,6 +44,17 @@
  * DOM.
  */
 
+import {
+  DEFAULT_PRESET,
+  MOTION_PACES,
+  MOTION_PRESETS,
+  type MotionPace,
+  type MotionPreset,
+} from "./deck";
+
+export { DEFAULT_PRESET, type MotionPace, type MotionPreset };
+
+
 /** Entrances: confident, no overshoot. A congress talk, not a product launch. */
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 /**
@@ -61,6 +72,148 @@ const EASE_MOVE = "cubic-bezier(0.4, 0, 0.2, 1)";
 const BUILD_MS = 300;
 const STAGGER_MS = 80;
 const MOVE_MS = 420;
+
+/**
+ * `solene` × `transformar` is 1.8 × 1200 ms = 2160 ms, which is the reference
+ * deck's `dur="2000"` morph. Our default is deliberately faster than the
+ * reference: that deck is projected at a congress and read from thirty metres,
+ * and the same 2 s on a laptop being watched from a metre away feels sluggish.
+ * The doctor who wants the congress pacing asks for it by name.
+ */
+const PACE_FACTOR: Record<MotionPace, number> = {
+  rapido: 0.65,
+  normal: 1,
+  solene: 1.8,
+};
+
+type Recipe = {
+  /** Multiplies the gap between staged elements. 1 = 80 ms. */
+  stagger: number;
+  /** Multiplies how long each element takes to arrive. 1 = 300 ms. */
+  build: number;
+  /** Multiplies shared-element travel. 1 = 420 ms. */
+  move: number;
+  /** The `mecanismo` hub opening centre-stage. */
+  hero: boolean;
+  /** Staged elements also grow in slightly, not just rise. */
+  grow: boolean;
+  /** The big number zooms rather than rises. */
+  zoom: boolean;
+  /** One pulse on the key element after the build settles. */
+  pulse: boolean;
+  /** Nothing else starts until the shared-element travel has landed. */
+  hold: boolean;
+};
+
+/**
+ * The named presets, and why these eight.
+ *
+ * They were derived from a real specialist-made deck — ESC Cardio-Oncology
+ * 2026, 32 slides — whose animation XML we read. What that deck actually does:
+ *
+ * - **17 of its 32 slides have no transition at all.** Motion is concentrated on
+ *   the slides that carry an argument. That restraint is most of why it reads as
+ *   expensive rather than busy, so `nenhuma` is a first-class preset and not an
+ *   afterthought — a deck where everything moves is the failure mode.
+ * - Builds on 15 slides, effect counts: Zoom entrance ×63, Fly In ×32,
+ *   Grow/Shrink ×25, Glide ×22, Fade exit ×13, Fade entrance ×10. Zoom leading
+ *   by a factor of two is why `numero` exists as its own preset.
+ * - Almost every trigger is "with previous", chained by delay rather than
+ *   clicked — measured stagger on its slide 3 was 0/300/500/750/1000 ms, so
+ *   ~250 ms apart. That is `progressiva`, and `pace: "solene"` on top of it.
+ * - PowerPoint Morph (`byObject`, `spd="slow"`, `dur=2000`) on 8 slides,
+ *   including a 14→15→16 chain holding one figure across three slides. That is
+ *   `transformar`.
+ *
+ * Each preset is a *tested motion*, not a parameter surface: the doctor and the
+ * model both name it in Portuguese and get exactly one thing. Anything that
+ * would need a keyframe list to express is deliberately not expressible.
+ */
+const MOTION_RECIPES: Record<MotionPreset, Recipe | null> = {
+  /**
+   * No motion. The slide is simply there — 17 of the reference deck's 32.
+   *
+   * `null` is not "a recipe with everything off": it is an early return in
+   * `playSlideMotion`, so the slide costs no measurement at all and there is no
+   * code path that could leave it half-built.
+   */
+  nenhuma: null,
+
+  /**
+   * The default, and what every deck made before this feature existed gets:
+   * elements arrive in reading order, and anything repeated from the previous
+   * slide travels instead of blinking.
+   */
+  suave: { stagger: 1, build: 1, move: 1, hero: true, grow: false, zoom: false, pulse: false, hold: false },
+
+  /**
+   * The reference deck's own pacing: 80 × 3.1 ≈ 250 ms apart, which is what its
+   * slide 3 measured. For a slide whose bullets are the argument.
+   */
+  progressiva: { stagger: 3.1, build: 1.6, move: 1, hero: true, grow: false, zoom: false, pulse: false, hold: false },
+
+  /**
+   * The gesture the feature was asked for — hub centre-stage, then left and
+   * smaller while the branches arrive. Identical to `suave` on purpose: the hero
+   * is already automatic on `mecanismo`, and this name exists so a doctor can
+   * *ask* for it, and so `chat.ts` can refuse it on a layout that has no hub
+   * rather than silently doing nothing.
+   */
+  heroi: { stagger: 1, build: 1, move: 1, hero: true, grow: false, zoom: false, pulse: false, hold: false },
+
+  /**
+   * Zoom entrance on the big number — the reference deck's most-used effect, by
+   * a factor of two over anything else. Slightly wider stagger so the number is
+   * not still growing while its caption lands.
+   */
+  numero: { stagger: 1.4, build: 1.2, move: 1, hero: true, grow: false, zoom: true, pulse: false, hold: false },
+
+  /**
+   * A protocol one step at a time: 80 × 4.4 ≈ 350 ms, slower than the reference
+   * deck's bullets because a step is a thing you wait for rather than read, plus
+   * the deck's Grow/Shrink on each step as it lands.
+   */
+  etapas: { stagger: 4.4, build: 1.4, move: 1, hero: true, grow: true, zoom: false, pulse: false, hold: false },
+
+  /**
+   * Morph: 420 × 2.86 = 1200 ms of travel, and the rest of the slide holds until
+   * it lands. `hero: false` because the two compete — the hub cannot both fly in
+   * from the previous slide and open centre-stage, and the flight is the truer
+   * story of where the concept came from.
+   */
+  transformar: { stagger: 1, build: 1, move: 2.86, hero: false, grow: false, zoom: false, pulse: false, hold: true },
+
+  /** A normal build, then one pulse on the key element after it has settled. */
+  destacar: { stagger: 1, build: 1, move: 1, hero: true, grow: false, zoom: false, pulse: true, hold: false },
+};
+
+/** What `playSlideMotion` is handed: a resolved preset plus its tempo. */
+export type MotionPlan = { preset: MotionPreset; pace: MotionPace };
+
+export function isPreset(value: unknown): value is MotionPreset {
+  return MOTION_PRESETS.includes(value as MotionPreset);
+}
+
+export function isPace(value: unknown): value is MotionPace {
+  return MOTION_PACES.includes(value as MotionPace);
+}
+
+/**
+ * An unknown preset falls back to the default rather than to no motion.
+ *
+ * A deck saved by a newer build carries preset names this build has never heard
+ * of. Treating those as `nenhuma` would make the presenter silently stop
+ * animating; treating them as `suave` gives the same slide the same content and
+ * roughly the right feel. Nothing here can fail closed onto missing content —
+ * the slide is fully rendered either way.
+ */
+export function resolvePlan(animation: unknown): MotionPlan {
+  const raw = (animation ?? {}) as { preset?: unknown; pace?: unknown };
+  return {
+    preset: isPreset(raw.preset) ? raw.preset : DEFAULT_PRESET,
+    pace: isPace(raw.pace) ? raw.pace : "normal",
+  };
+}
 
 /**
  * The hero opening on `mecanismo`: the hub lands centre-stage, holds long enough
@@ -85,17 +238,31 @@ export const HERO_HANDOFF_MS = 700;
  */
 const MAX_STAGE = 6;
 
-/** Delay for the nth element of a build, in ms. */
-export function stage(index: number, base = 0): number {
-  return base + Math.min(index, MAX_STAGE) * STAGGER_MS;
-}
-
 export type Marks = Record<string, string>;
 
 const NONE: Marks = {};
 
-export function buildMark(delayMs: number): Marks {
-  return { "data-build": String(Math.max(0, Math.round(delayMs))) };
+/**
+ * A staged element records its *ordinal*, not a delay in milliseconds.
+ *
+ * The delay is only knowable once the preset is: `progressiva` spaces elements
+ * 250 ms apart where `suave` uses 80. Baking a number in at render time meant
+ * the components would each have to know the preset, and the hand-off base
+ * (`HERO_HANDOFF_MS`, a duration) would get scaled by the stagger multiplier
+ * along with it, which drifts the branches away from the hub they are supposed
+ * to overlap. So the mark is `base:index` and `motion.ts` scales the two parts
+ * by different factors.
+ */
+export function buildMark(index: number, baseMs = 0): Marks {
+  const i = Math.max(0, Math.round(index));
+  const base = Math.max(0, Math.round(baseMs));
+  return { "data-build": `${base}:${i}` };
+}
+
+function buildDelay(el: HTMLElement, recipe: Recipe, pace: number): number {
+  const [base, index] = (el.dataset.build ?? "0:0").split(":").map(Number);
+  const step = Math.min(index || 0, MAX_STAGE) * STAGGER_MS * recipe.stagger;
+  return ((base || 0) + step) * pace;
 }
 
 /**
@@ -130,6 +297,16 @@ export function imageKey(url: string | undefined): Marks {
 export const heroMark: Marks = { "data-hero": "" };
 export const heroStageMark: Marks = { "data-hero-stage": "" };
 
+/**
+ * Semantic marks: they say *what an element is*, never how it moves.
+ *
+ * Presets choose behaviour from these, which is what keeps the components free
+ * of preset names — `SlideView` says "this is the big number", and `numero`
+ * decides that the big number zooms. Adding a preset touches this file only.
+ */
+export const statMark: Marks = { "data-stat": "" };
+export const keyMark: Marks = { "data-key": "" };
+
 function reduced(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return true;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -152,10 +329,34 @@ export function snapshotSlide(root: HTMLElement | null): SlideRects | null {
     const key = el.dataset.shared;
     if (!key) continue;
     if (rects.has(key)) ambiguous.add(key);
-    else rects.set(key, el.getBoundingClientRect());
+    else rects.set(key, contentRect(el));
   }
   for (const key of ambiguous) rects.delete(key);
   return rects;
+}
+
+/**
+ * The box of what you can actually *see* inside the element, not the element.
+ *
+ * The two are wildly different for text. A `secao` title is a block capped at
+ * 72cqw holding the left-aligned word "Prevenção"; the `topicos` title it morphs
+ * into is a full-width block holding the same word, also left-aligned. Their
+ * element boxes have centres 14cqw apart with no glyph anywhere near either
+ * centre, so matching element centres flew "Prevenção" off the left edge of the
+ * slide on its way to a position it was almost already at. Caught on
+ * `transformar`, where 1200 ms makes it impossible to miss; it was wrong at
+ * 420 ms too, just quick enough to read as a flicker.
+ *
+ * A Range over the contents gives the glyph box, which is the thing the eye is
+ * tracking. Images keep the element box: the wrapper *is* the visible thing, and
+ * `cropFrames` needs its exact edges to close the crop.
+ */
+function contentRect(el: HTMLElement): DOMRect {
+  if (el.querySelector("img")) return el.getBoundingClientRect();
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const rect = range.getBoundingClientRect();
+  return rect.width && rect.height ? rect : el.getBoundingClientRect();
 }
 
 /**
@@ -185,12 +386,39 @@ export function stopSlideMotion(root: HTMLElement | null): void {
 export function playSlideMotion(
   root: HTMLElement | null,
   before: SlideRects | null,
+  plan: MotionPlan = { preset: DEFAULT_PRESET, pace: "normal" },
 ): void {
   if (!root || reduced()) return;
   stopSlideMotion(root);
-  const moved = moveShared(root, before);
-  playHero(root, moved);
-  playBuild(root, moved);
+  const recipe = MOTION_RECIPES[plan.preset];
+  // `nenhuma`, or a preset this build doesn't know. Either way the slide is
+  // already fully rendered by React, so returning here *is* the finished slide.
+  if (!recipe) return;
+  const pace = PACE_FACTOR[plan.pace] ?? 1;
+
+  const moveMs = MOVE_MS * recipe.move * pace;
+  const moved = moveShared(root, before, moveMs);
+  // `transformar` is the one preset where the rest of the slide waits: the point
+  // is to watch one figure being transformed, and a build running underneath it
+  // is the second thing on screen that stops you seeing the first.
+  const hold = recipe.hold && moved.length > 0 ? moveMs : 0;
+  if (recipe.hero) playHero(root, moved, pace);
+  playBuild(root, moved, recipe, pace, hold);
+  if (recipe.pulse) playPulse(root, moved, recipe, pace, hold, moveMs);
+}
+
+/**
+ * The slide's key element, for the presets that single one out.
+ *
+ * Ordered by how much of the slide the element *is*: a `destaque` is its number,
+ * a `mecanismo` is its hub, and everything else falls back to the title.
+ */
+function keyElement(root: HTMLElement): HTMLElement | null {
+  return (
+    root.querySelector<HTMLElement>("[data-stat]") ??
+    root.querySelector<HTMLElement>("[data-hero]") ??
+    root.querySelector<HTMLElement>("[data-key]")
+  );
 }
 
 /** An element is left alone if it, or anything it wraps, is already moving. */
@@ -201,6 +429,7 @@ function isBusy(el: HTMLElement, moved: HTMLElement[]): boolean {
 function moveShared(
   root: HTMLElement,
   before: SlideRects | null,
+  moveMs: number,
 ): HTMLElement[] {
   if (!before || before.size === 0) return [];
 
@@ -216,7 +445,7 @@ function moveShared(
   for (const [key, el] of candidates) {
     const from = el && before.get(key);
     if (!el || !from) continue;
-    const to = el.getBoundingClientRect();
+    const to = contentRect(el);
     if (!from.width || !from.height || !to.width || !to.height) continue;
 
     // It matched, so it must not also fade in — even if it turns out not to
@@ -226,10 +455,10 @@ function moveShared(
     const crop = Boolean(el.querySelector("img"));
     const keyframes = crop
       ? cropFrames(from, to)
-      : textFrames(from, to);
+      : textFrames(from, to, el.getBoundingClientRect());
     if (!keyframes) continue;
 
-    el.animate(keyframes, { duration: MOVE_MS, easing: EASE_MOVE });
+    el.animate(keyframes, { duration: moveMs, easing: EASE_MOVE });
 
     if (crop) {
       // The wrapper is being scaled non-uniformly (full-bleed 100cqw → a 41cqw
@@ -245,7 +474,7 @@ function moveShared(
           { transform: `scale(${1 / sx}, ${1 / sy})`, transformOrigin: "0 0" },
           { transform: "scale(1, 1)", transformOrigin: "0 0" },
         ],
-        { duration: MOVE_MS, easing: EASE_MOVE },
+        { duration: moveMs, easing: EASE_MOVE },
       );
     }
   }
@@ -285,21 +514,33 @@ function cropFrames(from: DOMRect, to: DOMRect): Keyframe[] | null {
  * horizontally for the whole flight. Height is the honest proxy for font size,
  * which is the thing the eye is actually tracking.
  */
-function textFrames(from: DOMRect, to: DOMRect): Keyframe[] | null {
+function textFrames(
+  from: DOMRect,
+  to: DOMRect,
+  box: DOMRect,
+): Keyframe[] | null {
   const dx = from.left + from.width / 2 - (to.left + to.width / 2);
   const dy = from.top + from.height / 2 - (to.top + to.height / 2);
   const s = from.height / to.height;
   if (isStill(dx, dy, s, s)) return null;
+  // The transform is applied to the element, but the thing that has to land in
+  // the right place is the *text*. Pinning the origin to the glyph box's centre,
+  // expressed in the element's own coordinates, makes the scale happen around
+  // the text rather than around the middle of whatever block contains it — so
+  // the translation above is the only thing that moves it.
+  const origin = `${to.left + to.width / 2 - box.left}px ${
+    to.top + to.height / 2 - box.top
+  }px`;
   return [
     {
       transform: `translate(${dx}px, ${dy}px) scale(${s})`,
-      transformOrigin: "50% 50%",
+      transformOrigin: origin,
     },
-    { transform: "translate(0px, 0px) scale(1)", transformOrigin: "50% 50%" },
+    { transform: "translate(0px, 0px) scale(1)", transformOrigin: origin },
   ];
 }
 
-function playHero(root: HTMLElement, moved: HTMLElement[]): void {
+function playHero(root: HTMLElement, moved: HTMLElement[], pace: number): void {
   const el = root.querySelector<HTMLElement>("[data-hero]");
   const stageEl = el?.closest<HTMLElement>("[data-hero-stage]");
   if (!el || !stageEl) return;
@@ -323,22 +564,102 @@ function playHero(root: HTMLElement, moved: HTMLElement[]): void {
       { offset: HERO_DEPARTS, opacity: 1, transform: centred, easing: EASE_MOVE },
       { offset: 1, opacity: 1, transform: resting },
     ],
-    { duration: HERO_MS, fill: "backwards" },
+    // The hand-off constant the branches key off is a *duration*, so it scales
+    // with the pace and not with the stagger — otherwise `progressiva` would
+    // push the branches 3× later while the hub still landed at the old moment.
+    { duration: HERO_MS * pace, fill: "backwards" },
   );
 }
 
-function playBuild(root: HTMLElement, moved: HTMLElement[]): void {
+function playBuild(
+  root: HTMLElement,
+  moved: HTMLElement[],
+  recipe: Recipe,
+  pace: number,
+  hold: number,
+): void {
+  const stat = recipe.zoom ? root.querySelector<HTMLElement>("[data-stat]") : null;
+
   for (const el of root.querySelectorAll<HTMLElement>("[data-build]")) {
     if (isBusy(el, moved)) continue;
-    const delay = Number(el.dataset.build) || 0;
+    const delay = hold + buildDelay(el, recipe, pace);
+    const duration = BUILD_MS * recipe.build * pace;
+
+    // The number *is* the slide, so under `numero` it arrives by growing into
+    // place from the middle of its own box rather than sliding up a third of a
+    // line. Scale only — the reference deck's Zoom entrance, which it uses twice
+    // as often as anything else.
+    if (stat && (el === stat || el.contains(stat))) {
+      el.animate(
+        [
+          { opacity: 0, transform: "scale(0.62)", transformOrigin: "50% 50%" },
+          { opacity: 1, transform: "scale(1)", transformOrigin: "50% 50%" },
+        ],
+        { duration: duration * 1.5, delay, easing: EASE, fill: "backwards" },
+      );
+      continue;
+    }
+
     el.animate(
       [
         // `em` rather than px so the rise is proportional to the type — the same
         // build has to look right on a phone and on a 4 m projection.
-        { opacity: 0, transform: "translateY(0.35em)" },
-        { opacity: 1, transform: "translateY(0)" },
+        {
+          opacity: 0,
+          transform: recipe.grow
+            ? "translateY(0.35em) scale(0.94)"
+            : "translateY(0.35em)",
+        },
+        {
+          opacity: 1,
+          transform: recipe.grow ? "translateY(0) scale(1)" : "translateY(0)",
+        },
       ],
-      { duration: BUILD_MS, delay, easing: EASE, fill: "backwards" },
+      { duration, delay, easing: EASE, fill: "backwards" },
     );
   }
+}
+
+/**
+ * One pulse on the key element, *after* the slide has settled.
+ *
+ * Scale only, and small: 6% is enough to catch the eye on a projection and
+ * small enough that a heading sitting next to other text doesn't visibly
+ * collide with it. It never runs while the element is still arriving — an
+ * emphasis that overlaps the entrance reads as a wobble, not as emphasis.
+ */
+function playPulse(
+  root: HTMLElement,
+  moved: HTMLElement[],
+  recipe: Recipe,
+  pace: number,
+  hold: number,
+  moveMs: number,
+): void {
+  const el = keyElement(root);
+  if (!el) return;
+
+  // Whichever way this element got here, the pulse starts after it has landed.
+  // Getting this wrong is not a subtle bug: two WAAPI animations writing
+  // `transform` on one element means the later one wins outright, so a pulse
+  // that overlapped the entrance would cancel the entrance's own transform and
+  // the element would jump into place.
+  const own = el.closest<HTMLElement>("[data-build]");
+  let arrival = own
+    ? buildDelay(own, recipe, pace) + BUILD_MS * recipe.build * pace
+    : 0;
+  if (isBusy(el, moved)) arrival = Math.max(arrival, moveMs);
+  if (recipe.hero && el.matches("[data-hero]")) {
+    arrival = Math.max(arrival, HERO_MS * pace);
+  }
+  const delay = hold + arrival + 260 * pace;
+
+  el.animate(
+    [
+      { transform: "scale(1)", transformOrigin: "50% 50%", offset: 0 },
+      { transform: "scale(1.06)", transformOrigin: "50% 50%", offset: 0.45 },
+      { transform: "scale(1)", transformOrigin: "50% 50%", offset: 1 },
+    ],
+    { duration: 520 * pace, delay, easing: "ease-in-out" },
+  );
 }
