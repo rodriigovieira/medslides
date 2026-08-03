@@ -71,6 +71,7 @@ const OPS_SCHEMA = {
           citationQuery: { type: "STRING" },
           para: { type: "NUMBER" },
           imagePrompt: { type: "STRING" },
+          estilo: { type: "STRING", enum: ["foto", "ilustracao"] },
           altaQualidade: { type: "BOOLEAN" },
         },
         required: ["tipo"],
@@ -89,6 +90,7 @@ const OPS_SCHEMA = {
           "citationQuery",
           "para",
           "imagePrompt",
+          "estilo",
           "altaQualidade",
         ],
       },
@@ -121,12 +123,22 @@ Operações:
   e \`imagePrompt\`. Use **só** quando a pessoa pedir imagem gerada/criada por IA,
   ou descrever uma cena específica que uma busca em banco de fotos não acharia
   ("um médico idoso explicando um exame para a família numa enfermaria vazia").
-  Na dúvida entre as duas, use \`imagem\`. \`altaQualidade: true\` só se pedirem
-  qualidade máxima — é mais caro e mais lento.
+  Na dúvida entre as duas, use \`imagem\`. \`estilo\` escolhe entre \`foto\`
+  (padrão) e \`ilustracao\` (esquema científico em fundo branco — anticorpo,
+  coração, receptor, célula). \`altaQualidade: true\` só se pedirem qualidade
+  máxima — é mais caro e mais lento.
   \`imagePrompt\` é uma descrição **em inglês**, uma ou duas frases, do que
-  aparece na cena: sujeito, ambiente, luz, enquadramento. Não peça texto,
-  logotipo, gráfico nem imagem de exame — nada que possa ser lido como evidência
-  de um paciente real.
+  aparece na cena. Escolha o registro em \`estilo\`:
+  - \`foto\` (padrão) — fotografia de ambiente: sujeito, cenário, luz,
+    enquadramento. Ex.: \`an empty intensive care unit at dawn, cool light\`.
+  - \`ilustracao\` — esquema científico limpo, um único objeto centralizado em
+    fundo branco, no estilo dos congressos: um anticorpo monoclonal, um coração,
+    um receptor de membrana, uma célula. Ex.: \`a Y-shaped monoclonal antibody
+    with small payload spheres attached to its arms by short linkers\`.
+    Descreva **a forma**, não rótulos. A paleta é aplicada automaticamente.
+  Nunca peça texto, rótulo, logotipo ou gráfico com números — o modelo desenha
+  letra falsa. Nunca peça exame, lesão, peça anatômica nem estrutura química:
+  uma fórmula inventada parece tão convincente quanto a certa.
 
 \`citationQuery\` e \`imageQuery\` não vão para a tela: são buscas que outros
 sistemas executam.
@@ -160,7 +172,8 @@ Regras:
   palavras, sem parágrafo na tela.
 - Nunca escreva referência, autor, ano ou DOI **no texto do slide**. As
   referências vêm do PubMed pela \`citationQuery\`.
-- Você não gera imagens e não descreve fotos no slide; só preenche \`imageQuery\`.`;
+- Nunca descreva a foto no texto do slide. A imagem entra por \`imageQuery\`
+  (banco de fotos, padrão) ou por \`gerarImagem\` (criada por IA, sob pedido).`;
 
 function describeDeck(slides: Slide[]): string {
   return slides
@@ -296,6 +309,7 @@ export const send = action({
             slideIndex: request.slideIndex,
             prompt: request.prompt,
             quality: request.alta ? "alta" : "rapida",
+            style: request.estilo === "ilustracao" ? "ilustracao" : "foto",
           });
           generated++;
         }
@@ -369,6 +383,7 @@ const ONE_SCHEMA = {
     imageQuery: { type: "STRING" },
     removerImagem: { type: "BOOLEAN" },
     imagePrompt: { type: "STRING" },
+    estilo: { type: "STRING", enum: ["foto", "ilustracao"] },
     altaQualidade: { type: "BOOLEAN" },
   },
   required: ["resposta"],
@@ -385,6 +400,7 @@ const ONE_SCHEMA = {
     "imageQuery",
     "removerImagem",
     "imagePrompt",
+    "estilo",
     "altaQualidade",
   ],
 } as const;
@@ -555,6 +571,7 @@ export const editOne = action({
         slideIndex,
         prompt: aiPrompt,
         quality: patch.altaQualidade === true ? "alta" : "rapida",
+        style: patch.estilo === "ilustracao" ? "ilustracao" : "foto",
       });
       return `${reply} Gerando a imagem com IA — leva alguns segundos.`;
     }

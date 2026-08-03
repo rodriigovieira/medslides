@@ -17,6 +17,10 @@ export type Treatment = "full" | "panel" | "none";
  */
 export function treatmentFor(slide: Slide, hasImage: boolean): Treatment {
   if (!hasImage) return "none";
+  // An illustration is drawn on white and is the point of its own frame. Under
+  // the full-bleed scrim it would be a dark rectangle with a ghost in it, so it
+  // always takes the panel — beside the text, on the page, as in a journal.
+  if (slide.imageStyle === "ilustracao") return "panel";
   if (slide.layout === "topicos" || slide.layout === "encerramento") {
     return "panel";
   }
@@ -164,6 +168,26 @@ export async function composeSlideImage(
 
     const panelW = OUT_W * 0.41;
     const panelX = OUT_W - panelW;
+
+    if (slide.imageStyle === "ilustracao") {
+      // Contain, not cover — same reason as on screen, and the paper background
+      // is already painted, so the letterboxing is invisible.
+      const pad = OUT_W * 0.03;
+      const boxW = panelW - pad * 2;
+      const boxH = OUT_H - pad * 2;
+      const scale = Math.min(boxW / img.width, boxH / img.height);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+      ctx.drawImage(
+        img,
+        panelX + pad + (boxW - dw) / 2,
+        pad + (boxH - dh) / 2,
+        dw,
+        dh,
+      );
+      return canvas.toDataURL("image/jpeg", 0.86);
+    }
+
     drawCover(ctx, img, panelX, 0, panelW, OUT_H);
 
     const featherW = OUT_W * 0.09;

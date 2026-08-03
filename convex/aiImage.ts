@@ -8,6 +8,7 @@ import {
   ImageError,
   generateSlideImage,
   type ImageQuality,
+  type ImageStyle,
 } from "./lib/imagen";
 
 /**
@@ -26,10 +27,15 @@ export const run = internalAction({
     slideIndex: v.number(),
     prompt: v.string(),
     quality: v.union(v.literal("rapida"), v.literal("alta")),
+    style: v.union(v.literal("foto"), v.literal("ilustracao")),
   },
-  handler: async (ctx, { deckId, slideIndex, prompt, quality }) => {
+  handler: async (ctx, { deckId, slideIndex, prompt, quality, style }) => {
     try {
-      const image = await generateSlideImage(prompt, quality as ImageQuality);
+      const image = await generateSlideImage(
+        prompt,
+        quality as ImageQuality,
+        style as ImageStyle,
+      );
       const storageId = await ctx.storage.store(
         new Blob([image.bytes], { type: image.contentType }),
       );
@@ -41,6 +47,7 @@ export const run = internalAction({
         // Marks the slide as carrying generated art rather than a photograph,
         // and doubles as the identity that keeps the picker from reusing it.
         source: `ia:${image.model}:${prompt.slice(0, 80)}`,
+        style,
       });
     } catch (error) {
       // The user is waiting on a promise the chat already made, so a failure has

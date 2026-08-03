@@ -24,20 +24,39 @@ export type ImageQuality = keyof typeof IMAGE_MODELS;
 
 export class ImageError extends Error {}
 
+export type ImageStyle = "foto" | "ilustracao";
+
 /**
  * Direction bolted onto every prompt.
  *
- * Text is the big one: image models render lettering as convincing gibberish,
- * and a slide whose photo contains fake words is worse than a slide with no
- * photo. The rest keeps generated art in the same visual register as the stock
- * photography it sits beside — editorial, real, unstyled.
+ * The no-text clause carries most of the weight: image models render lettering
+ * as convincing gibberish, and a slide whose art contains fake words is worse
+ * than a slide with no art. Labels belong to the deck, which can spell.
+ *
+ * Two registers, because congress decks use two. A photograph is atmosphere —
+ * the room, the team, the light. An illustration is vocabulary — the antibody,
+ * the heart, the receptor — drawn in the deck's own palette so it reads as part
+ * of the design rather than as clip art dropped on top of it.
  */
-const DIRECTION = [
-  "Photorealistic editorial photograph, 16:9, natural light, shallow depth of field.",
-  "No text, no letters, no numbers, no watermarks, no logos, no signage of any kind.",
-  "No charts, no diagrams, no medical imaging, no anatomical illustration.",
-  "Dignified and documentary in tone, as for a medical conference slide.",
-].join(" ");
+const NO_TEXT =
+  "No text, no letters, no numbers, no labels, no watermarks, no logos, no signage of any kind.";
+
+const DIRECTION: Record<ImageStyle, string> = {
+  foto: [
+    "Photorealistic editorial photograph, natural light, shallow depth of field.",
+    NO_TEXT,
+    "No charts, no diagrams, no medical imaging.",
+    "Dignified and documentary in tone, as for a medical conference slide.",
+  ].join(" "),
+  ilustracao: [
+    "Clean scientific illustration for a medical conference slide: flat editorial",
+    "infographic style, smooth shapes, subtle depth, confident line work.",
+    "Palette: deep teal (#0D7A6F) as the primary, warm gold (#C79A3A) as the accent,",
+    "muted plum for contrast, on a plain pure white background.",
+    "A single subject, centred, with generous margins and no background scenery.",
+    NO_TEXT,
+  ].join(" "),
+};
 
 /**
  * Nothing that could be mistaken for evidence from a real patient.
@@ -50,7 +69,7 @@ const DIRECTION = [
  * this prompt is written by a Brazilian doctor, not by our English prompt layer.
  */
 const FORBIDDEN =
-  /\b(x-?rays?|radiograf\w*|raios?-?x|radiographs?|ct scans?|tomografias?|mri|resson[âa]nci\w*|ultrassom|ultrassonografi\w*|ultrasounds?|ecocardiogram\w*|echocardiograms?|ecgs?|ekgs?|eletrocardiogram\w*|histolog\w*|bi[óo]psi\w*|biops\w+|pathology slides?|l[âa]minas?|microscop\w*|lesions?|les[õo]es|les[ãa]o|wounds?|feridas?|rashes|erup[çc][õo]es|tumou?rs?|tumor\w*|autops\w+|aut[óo]psi\w*|cadavers?|cad[áa]ver\w*|dissection|dissec[çc][ãa]o|surgical site|blood smear|esfrega[çc]o)\b/i;
+  /\b(x-?rays?|radiograf\w*|raios?-?x|radiographs?|ct scans?|tomografias?|mri|resson[âa]nci\w*|ultrassom|ultrassonografi\w*|ultrasounds?|ecocardiogram\w*|echocardiograms?|ecgs?|ekgs?|eletrocardiogram\w*|histolog\w*|bi[óo]psi\w*|biops\w+|pathology slides?|l[âa]minas?|microscop\w*|lesions?|les[õo]es|les[ãa]o|wounds?|feridas?|rashes|erup[çc][õo]es|tumou?rs?|tumor\w*|autops\w+|aut[óo]psi\w*|cadavers?|cad[áa]ver\w*|dissection|dissec[çc][ãa]o|surgical site|blood smear|esfrega[çc]o|chemical structures?|structural formulas?|molecular structures?|estruturas? qu[íi]mica\w*|f[óo]rmulas? estrutural\w*|estruturas? molecular\w*|smiles)\b/i;
 
 export function isSafeImagePrompt(prompt: string): boolean {
   // Negations stripped first, so "an empty ward, no wounds" isn't blocked by
@@ -65,6 +84,7 @@ export function isSafeImagePrompt(prompt: string): boolean {
 export async function generateSlideImage(
   prompt: string,
   quality: ImageQuality,
+  style: ImageStyle,
 ): Promise<{ bytes: ArrayBuffer; contentType: string; model: string }> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new ImageError("GEMINI_API_KEY ausente.");
@@ -73,7 +93,7 @@ export async function generateSlideImage(
   if (text.length < 4) throw new ImageError("Descreva a imagem que você quer.");
   if (!isSafeImagePrompt(text)) {
     throw new ImageError(
-      "Não gero imagem de exame, lesão ou peça anatômica: uma imagem inventada dessas ao lado de uma citação real é lida como evidência do caso. Descreva o ambiente ou a cena.",
+      "Não gero exame, lesão, peça anatômica nem estrutura química: inventadas, essas imagens são lidas como dado — uma fórmula estrutural errada parece tão convincente quanto a certa. Peça o ambiente, a cena ou um esquema (anticorpo, coração, receptor).",
     );
   }
 
@@ -84,10 +104,13 @@ export async function generateSlideImage(
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: `${text}\n\n${DIRECTION}` }] }],
+        contents: [{ parts: [{ text: `${text}\n\n${DIRECTION[style]}` }] }],
         generationConfig: {
           responseModalities: ["IMAGE"],
-          imageConfig: { aspectRatio: "16:9" },
+          // A photograph fills the slide, so it's framed like the slide. An
+          // illustration sits in the panel beside the text, where a square holds
+          // the subject at a usable size instead of stranding it in wide space.
+          imageConfig: { aspectRatio: style === "foto" ? "16:9" : "1:1" },
         },
       }),
     },

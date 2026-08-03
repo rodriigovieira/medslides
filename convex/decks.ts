@@ -229,8 +229,12 @@ export const attachImage = internalMutation({
     storageId: v.id("_storage"),
     credit: v.optional(v.string()),
     source: v.optional(v.string()),
+    style: v.optional(v.string()),
   },
-  handler: async (ctx, { deckId, slideIndex, storageId, credit, source }) => {
+  handler: async (
+    ctx,
+    { deckId, slideIndex, storageId, credit, source, style },
+  ) => {
     const deck = await ctx.db.get(deckId);
     if (!deck) return;
     const slides = deck.slides.map((slide, index) =>
@@ -240,6 +244,7 @@ export const attachImage = internalMutation({
             imageStorageId: storageId,
             imageCredit: credit,
             imageSource: source,
+            imageStyle: style,
           }
         : slide,
     );

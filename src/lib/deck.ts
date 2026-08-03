@@ -68,6 +68,8 @@ export type Slide = {
   imageCredit?: string;
   /** Origin of the photo, used to keep one from appearing on two slides. */
   imageSource?: string;
+  /** "ilustracao" for drawn art; absent or "foto" for photography. */
+  imageStyle?: string;
   /** Resolved after generation; the renderer decides how to use it per layout. */
   imageUrl?: string;
 };
@@ -234,6 +236,9 @@ export function sanitizeSlide(value: unknown): Slide | null {
   }
   if (typeof raw.imageSource === "string" && raw.imageSource) {
     slide.imageSource = raw.imageSource;
+  }
+  if (typeof raw.imageStyle === "string" && raw.imageStyle) {
+    slide.imageStyle = raw.imageStyle;
   }
   if (typeof raw.imageUrl === "string" && raw.imageUrl) {
     slide.imageUrl = raw.imageUrl;

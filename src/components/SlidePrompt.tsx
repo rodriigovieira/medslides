@@ -37,9 +37,14 @@ const SHORTCUTS = [
       "Troque a foto deste slide por outra que combine com o conteúdo. Se ele ainda não tem foto, escolha uma.",
   },
   {
-    label: "Gerar imagem ✦",
+    label: "Gerar foto ✦",
     instruction:
-      "Gere uma imagem com IA para este slide, que ilustre o conteúdo dele.",
+      "Gere com IA uma fotografia de ambiente para este slide, que combine com o conteúdo dele.",
+  },
+  {
+    label: "Gerar esquema ✦",
+    instruction:
+      "Gere com IA uma ilustração científica, em estilo esquema de congresso, do principal objeto ou conceito deste slide.",
   },
 ];
 

@@ -48,6 +48,12 @@ export const slideValidator = v.object({
    */
   imageSource: v.optional(v.string()),
   /**
+   * "ilustracao" when the picture is drawn rather than photographed. It changes
+   * how the slide uses it: an illustration on white can never go under the dark
+   * full-bleed scrim, which would bury it.
+   */
+  imageStyle: v.optional(v.string()),
+  /**
    * Legacy: decks generated before the switch from AI image generation to stock
    * photography carry this. Nothing writes it any more, but removing it from the
    * validator would fail the schema push against those existing rows.

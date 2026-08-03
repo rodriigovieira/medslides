@@ -73,8 +73,22 @@ export function SlideView({
       )}
 
       {image && treatment === "panel" && (
-        <div className="absolute inset-y-0 right-0 w-[41cqw]">
-          <Img src={image} className="h-full w-full" />
+        <div
+          className={`absolute inset-y-0 right-0 w-[41cqw] ${
+            slide.imageStyle === "ilustracao" ? "bg-paper-raised" : ""
+          }`}
+        >
+          {/* A photograph bleeds off the panel; an illustration is a whole
+              object, so cropping it to fill would eat the margins it was drawn
+              with and clip the subject. */}
+          <Img
+            src={image}
+            className={`h-full w-full ${
+              slide.imageStyle === "ilustracao"
+                ? "!object-contain p-[3cqw]"
+                : ""
+            }`}
+          />
           {/* Feathered inner edge so the panel reads as part of the page. */}
           <div
             className="absolute inset-y-0 left-0 w-[9cqw]"

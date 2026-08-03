@@ -21,6 +21,7 @@ type Op = {
   citationQuery?: string;
   removerImagem?: boolean;
   imagePrompt?: string;
+  estilo?: string;
   altaQualidade?: boolean;
   para?: number;
 };
@@ -87,6 +88,7 @@ export const applyOps = internalMutation({
         imageStorageId: undefined,
         imageUrl: undefined,
         imageCredit: undefined,
+        imageStyle: undefined,
         // `imageSource` deliberately survives: it's the photo being replaced,
         // and leaving it in place is what stops the search from handing back the
         // very picture the user just asked to be rid of.
@@ -113,7 +115,12 @@ export const applyOps = internalMutation({
     // Generated art is only *requested* here. The call costs money, so the
     // budget is reserved by the action before anything is scheduled, and this
     // mutation just says which slides asked and for what.
-    const aiRequests: Array<{ node: object; prompt: string; alta: boolean }> = [];
+    const aiRequests: Array<{
+      node: object;
+      prompt: string;
+      alta: boolean;
+      estilo: string;
+    }> = [];
     for (const op of ops.filter((o) => o.tipo === "gerarImagem")) {
       const i = index(op);
       const prompt = op.imagePrompt?.trim();
@@ -126,9 +133,15 @@ export const applyOps = internalMutation({
         imageUrl: undefined,
         imageCredit: undefined,
         imageSource: undefined,
+        imageStyle: undefined,
       };
       slides[i] = next;
-      aiRequests.push({ node: next, prompt, alta: op.altaQualidade === true });
+      aiRequests.push({
+        node: next,
+        prompt,
+        alta: op.altaQualidade === true,
+        estilo: op.estilo === "ilustracao" ? "ilustracao" : "foto",
+      });
       applied++;
     }
 
@@ -208,6 +221,7 @@ export const applyOps = internalMutation({
           slideIndex: slides.indexOf(r.node as (typeof slides)[number]),
           prompt: r.prompt,
           alta: r.alta,
+          estilo: r.estilo,
         }))
         .filter((r) => r.slideIndex >= 0),
     };
@@ -221,6 +235,7 @@ export const applyOps = internalMutation({
         slideIndex: v.number(),
         prompt: v.string(),
         alta: v.boolean(),
+        estilo: v.string(),
       }),
     ),
   }),
@@ -296,6 +311,7 @@ export const applySlidePatch = internalMutation({
             imageQuery: wantsNewPhoto ? p.imageQuery!.trim() : undefined,
             imageCredit: undefined,
             imageStorageId: undefined,
+            imageStyle: undefined,
             // Kept on a swap so the search can't return the same photo again;
             // cleared on a removal, where nothing is coming to replace it.
             imageSource: dropsPhoto ? undefined : current.imageSource,
@@ -305,6 +321,7 @@ export const applySlidePatch = internalMutation({
             imageCredit: current.imageCredit,
             imageStorageId: current.imageStorageId,
             imageSource: current.imageSource,
+            imageStyle: current.imageStyle,
           };
 
     const slides = [...deck.slides];
