@@ -69,29 +69,39 @@ const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
  */
 const EASE_MOVE = "cubic-bezier(0.4, 0, 0.2, 1)";
 
-const BUILD_MS = 300;
-const STAGGER_MS = 80;
-const MOVE_MS = 420;
-
 /**
- * `solene` × `transformar` is 1.8 × 1200 ms = 2160 ms, which is the reference
- * deck's `dur="2000"` morph. Our default is deliberately faster than the
- * reference: that deck is projected at a congress and read from thirty metres,
- * and the same 2 s on a laptop being watched from a metre away feels sluggish.
- * The doctor who wants the congress pacing asks for it by name.
+ * The base tempo, calibrated to the reference deck rather than away from it.
+ *
+ * These were originally 300/80/420 ms, on the argument that the reference is
+ * projected at a congress and read from thirty metres while this is watched on
+ * a laptop from one metre, so it should be quicker. That argument was wrong in
+ * practice — the first person to watch it said, unprompted, that it felt too
+ * fast, and the ~5x gap from the professionally-made deck was the whole reason.
+ * A build that is over before the eye reaches it is not "responsive", it is a
+ * jump cut; the point of animating at all is that the audience can *follow*
+ * where a thing went.
+ *
+ * At `normal` the numbers now land on what was measured in that deck:
+ * `progressiva` steps ~250 ms apart, and `transformar` runs 700 × 2.86 ≈
+ * 2000 ms, which is its `dur="2000"` morph exactly.
  */
+const BUILD_MS = 500;
+const STAGGER_MS = 130;
+const MOVE_MS = 700;
+
+/** `rapido` is for a deck being clicked through, not presented. */
 const PACE_FACTOR: Record<MotionPace, number> = {
-  rapido: 0.65,
+  rapido: 0.6,
   normal: 1,
-  solene: 1.8,
+  solene: 1.4,
 };
 
 type Recipe = {
-  /** Multiplies the gap between staged elements. 1 = 80 ms. */
+  /** Multiplies the gap between staged elements. 1 = 130 ms. */
   stagger: number;
-  /** Multiplies how long each element takes to arrive. 1 = 300 ms. */
+  /** Multiplies how long each element takes to arrive. 1 = 500 ms. */
   build: number;
-  /** Multiplies shared-element travel. 1 = 420 ms. */
+  /** Multiplies shared-element travel. 1 = 700 ms. */
   move: number;
   /** The `mecanismo` hub opening centre-stage. */
   hero: boolean;
@@ -150,7 +160,7 @@ const MOTION_RECIPES: Record<MotionPreset, Recipe | null> = {
    * The reference deck's own pacing: 80 × 3.1 ≈ 250 ms apart, which is what its
    * slide 3 measured. For a slide whose bullets are the argument.
    */
-  progressiva: { stagger: 3.1, build: 1.6, move: 1, hero: true, grow: false, zoom: false, pulse: false, hold: false },
+  progressiva: { stagger: 1.9, build: 1.6, move: 1, hero: true, grow: false, zoom: false, pulse: false, hold: false },
 
   /**
    * The gesture the feature was asked for — hub centre-stage, then left and
@@ -173,7 +183,7 @@ const MOTION_RECIPES: Record<MotionPreset, Recipe | null> = {
    * deck's bullets because a step is a thing you wait for rather than read, plus
    * the deck's Grow/Shrink on each step as it lands.
    */
-  etapas: { stagger: 4.4, build: 1.4, move: 1, hero: true, grow: true, zoom: false, pulse: false, hold: false },
+  etapas: { stagger: 2.7, build: 1.4, move: 1, hero: true, grow: true, zoom: false, pulse: false, hold: false },
 
   /**
    * Morph: 420 × 2.86 = 1200 ms of travel, and the rest of the slide holds until
