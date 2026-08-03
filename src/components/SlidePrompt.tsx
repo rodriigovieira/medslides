@@ -31,6 +31,11 @@ const SHORTCUTS = [
     instruction:
       "Converta este slide em um diagrama, escolhendo entre mecanismo, fluxo ou cards o que melhor representa o conteúdo.",
   },
+  {
+    label: "Trocar imagem",
+    instruction:
+      "Troque a foto deste slide por outra que combine com o conteúdo. Se ele ainda não tem foto, escolha uma.",
+  },
 ];
 
 export function SlidePrompt({

@@ -162,12 +162,30 @@ export const enrich = internalAction({
       }
     }
 
-    if (imageTargets.length > 0) {
-      try {
-        await attachImages(ctx, deckId, slides, deck.topic, imageTargets);
-      } catch (error) {
-        console.warn(`Imagens do enrich falharam: ${String(error)}`);
-      }
+    if (imageTargets.length === 0) return;
+
+    let attached: number[] = [];
+    try {
+      attached = await attachImages(ctx, deckId, slides, deck.topic, imageTargets);
+    } catch (error) {
+      console.warn(`Imagens do enrich falharam: ${String(error)}`);
+    }
+
+    // Say so when a photo was asked for and none was found. The chat already
+    // promised "buscando a imagem…", and a promise that quietly never resolves
+    // is the failure the user actually sees: the slide looks unchanged and the
+    // product looks broken.
+    const missed = imageTargets.filter((i) => !attached.includes(i));
+    if (missed.length > 0) {
+      const which =
+        missed.length === 1
+          ? `o slide ${missed[0] + 1}`
+          : `os slides ${missed.map((i) => i + 1).join(", ")}`;
+      await ctx.runMutation(internal.chatOps.appendMessage, {
+        deckId,
+        role: "assistant",
+        text: `Não encontrei foto no banco de imagens para ${which}. Descreva a cena de outro jeito — são fotos reais, então funciona melhor pedir um ambiente (\"UTI\", \"equipe de emergência\") do que um conceito.`,
+      });
     }
   },
 });
@@ -339,8 +357,9 @@ async function attachImages(
   slides: Slide[],
   topic: string,
   targets: number[],
-) {
-  if (targets.length === 0) return;
+): Promise<number[]> {
+  const attached: number[] = [];
+  if (targets.length === 0) return attached;
 
   // One search per distinct query, then a widening set of fallbacks so a niche
   // topic still ends up with something rather than a bare slide.
@@ -395,10 +414,13 @@ async function attachImages(
         credit: creditLine(image),
         source: image.url,
       });
+      attached.push(slideIndex);
     } catch (error) {
       console.warn(`Imagem do slide ${slideIndex} falhou: ${String(error)}`);
     }
   }
+
+  return attached;
 }
 
 function parseFinal(text: string) {

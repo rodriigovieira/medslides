@@ -19,6 +19,7 @@ type Op = {
   nos?: Array<{ heading?: string; body?: string }>;
   imageQuery?: string;
   citationQuery?: string;
+  removerImagem?: boolean;
 };
 
 export const applyOps = internalMutation({
@@ -83,6 +84,9 @@ export const applyOps = internalMutation({
         imageStorageId: undefined,
         imageUrl: undefined,
         imageCredit: undefined,
+        // `imageSource` deliberately survives: it's the photo being replaced,
+        // and leaving it in place is what stops the search from handing back the
+        // very picture the user just asked to be rid of.
       };
       slides[i] = next;
       needsPhoto.add(next);
@@ -189,10 +193,11 @@ export const applySlidePatch = internalMutation({
     patch: v.string(),
   },
   handler: async (ctx, { deckId, slideIndex, patch: raw }) => {
+    const nothing = { changed: false, needsPhoto: false };
     const deck = await ctx.db.get(deckId);
-    if (!deck) return false;
+    if (!deck) return nothing;
     const current = deck.slides[slideIndex];
-    if (!current) return false;
+    if (!current) return nothing;
 
     const p = JSON.parse(raw) as Op;
     const becomesDiagram =
@@ -215,7 +220,29 @@ export const applySlidePatch = internalMutation({
       right: current.right,
       notes: p.notas?.trim() || current.notes,
     });
-    if (!candidate) return false;
+    if (!candidate) return nothing;
+
+    // The photo only moves when this edit asked it to. Everything else about it
+    // is carried over untouched — the model never sees the stored file, and an
+    // "encurtar este slide" that dropped the photo would be a silent deletion.
+    const wantsNewPhoto = Boolean(p.imageQuery?.trim());
+    const dropsPhoto = p.removerImagem === true;
+    const photo =
+      wantsNewPhoto || dropsPhoto
+        ? {
+            imageQuery: wantsNewPhoto ? p.imageQuery!.trim() : undefined,
+            imageCredit: undefined,
+            imageStorageId: undefined,
+            // Kept on a swap so the search can't return the same photo again;
+            // cleared on a removal, where nothing is coming to replace it.
+            imageSource: dropsPhoto ? undefined : current.imageSource,
+          }
+        : {
+            imageQuery: current.imageQuery,
+            imageCredit: current.imageCredit,
+            imageStorageId: current.imageStorageId,
+            imageSource: current.imageSource,
+          };
 
     const slides = [...deck.slides];
     slides[slideIndex] = {
@@ -223,12 +250,10 @@ export const applySlidePatch = internalMutation({
       source: current.source,
       citationQuery: current.citationQuery,
       refs: current.refs,
-      imageQuery: current.imageQuery,
-      imageCredit: current.imageCredit,
-      imageStorageId: current.imageStorageId,
+      ...photo,
     };
     await ctx.db.patch(deckId, { slides });
-    return true;
+    return { changed: true, needsPhoto: wantsNewPhoto };
   },
-  returns: v.boolean(),
+  returns: v.object({ changed: v.boolean(), needsPhoto: v.boolean() }),
 });

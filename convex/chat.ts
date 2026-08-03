@@ -299,6 +299,8 @@ const ONE_SCHEMA = {
       },
     },
     notas: { type: "STRING" },
+    imageQuery: { type: "STRING" },
+    removerImagem: { type: "BOOLEAN" },
   },
   required: ["resposta"],
   propertyOrdering: [
@@ -311,6 +313,8 @@ const ONE_SCHEMA = {
     "nos",
     "outcome",
     "notas",
+    "imageQuery",
+    "removerImagem",
   ],
 } as const;
 
@@ -326,6 +330,13 @@ campos que mudam. Campo omitido = campo preservado.
   \`cards\` (blocos paralelos sem ordem — \`nos\`). Ao virar diagrama, devolva
   \`nos\` e **não** devolva \`topicos\`.
 - Nunca escreva referência, autor, ano ou DOI.
+- Imagem: para trocar, colocar ou pedir outra foto, devolva \`imageQuery\` com
+  2 a 4 palavras **em inglês**, concretas e fotografáveis — é uma busca em banco
+  de fotos, não um prompt. Bom: \`hospital corridor\`, \`emergency room team\`,
+  \`medication vials\`. A foto é ambiente, nunca informação: nunca busque achado
+  clínico, exame de imagem, lesão ou peça anatômica. **Qualquer layout aceita
+  foto**, inclusive diagramas e comparação. Para tirar a foto, devolva
+  \`removerImagem: true\`.
 - Se o pedido não fizer sentido para este slide, não invente: devolva só
   \`resposta\` explicando.`;
 
@@ -364,12 +375,21 @@ export const editOne = action({
         : "Pronto.";
 
     const { resposta: _ignored, ...patch } = result;
-    const changed = await ctx.runMutation(internal.chatOps.applySlidePatch, {
+    const applied = await ctx.runMutation(internal.chatOps.applySlidePatch, {
       deckId,
       slideIndex,
       patch: JSON.stringify(patch),
     });
+    if (!applied.changed) return `${reply} (nada mudou)`;
 
-    return changed ? reply : `${reply} (nada mudou)`;
+    if (applied.needsPhoto) {
+      await ctx.scheduler.runAfter(0, internal.generate.enrich, {
+        deckId,
+        slideIndexes: [],
+        imageIndexes: [slideIndex],
+      });
+      return `${reply} Buscando a imagem…`;
+    }
+    return reply;
   },
 });

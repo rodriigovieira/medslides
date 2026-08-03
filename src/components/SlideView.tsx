@@ -7,17 +7,24 @@ import {
   type Slide,
 } from "@/lib/deck";
 import { fitSlide, sized } from "@/lib/fit";
+import { scrimFor, treatmentFor } from "@/lib/compose";
 import { Editable, type EditHandler } from "./Editable";
 
 import { Diagram } from "./Diagram";
+
+/** The shared scrim, as a CSS gradient. */
+function scrimCss(layout: Slide["layout"]): string {
+  const { vertical, stops } = scrimFor(layout);
+  const parts = stops.map(([at, color]) => `${color} ${(at * 100).toFixed(0)}%`);
+  return `linear-gradient(${vertical ? "to top" : "96deg"}, ${parts.join(", ")})`;
+}
 
 /**
  * Everything is sized in `cqw` against the slide's own width, so one component
  * renders identically as a thumbnail, in the editor, and full-screen.
  *
- * Photos are used three different ways rather than as one universal backdrop:
- * full-bleed behind the cover and section dividers, and as a bleed panel beside
- * the text on content slides. A single treatment everywhere is what made the
+ * Photos are used two different ways rather than as one universal backdrop —
+ * `treatmentFor` decides which. A single treatment everywhere is what made the
  * earlier version look flat.
  */
 export function SlideView({
@@ -38,7 +45,7 @@ export function SlideView({
   onBulletFocus?: (index: number | null) => void;
 }) {
   const image = slide.imageUrl;
-  const treatment = imageTreatment(slide);
+  const treatment = treatmentFor(slide, Boolean(image));
   const citedCount = (slide.refs ?? []).filter((n) =>
     references?.some((r) => r.n === n),
   ).length;
@@ -60,15 +67,7 @@ export function SlideView({
       {image && treatment === "full" && (
         <>
           <Img src={image} className="absolute inset-0 h-full w-full" />
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                slide.layout === "capa"
-                  ? "linear-gradient(to top, rgba(8,16,24,0.94) 8%, rgba(8,16,24,0.72) 42%, rgba(8,16,24,0.30) 78%, rgba(8,16,24,0.18) 100%)"
-                  : "linear-gradient(96deg, rgba(8,16,24,0.90) 0%, rgba(8,16,24,0.74) 45%, rgba(8,16,24,0.44) 100%)",
-            }}
-          />
+          <div className="absolute inset-0" style={{ background: scrimCss(slide.layout) }} />
         </>
       )}
 
@@ -123,17 +122,6 @@ export function SlideView({
       />
     </div>
   );
-}
-
-/** How this slide should use its photo, if it has one. */
-function imageTreatment(slide: Slide): "full" | "panel" | "none" {
-  if (!slide.imageUrl) return "none";
-  if (slide.layout === "capa" || slide.layout === "secao") return "full";
-  if (slide.layout === "destaque") return "full";
-  if (slide.layout === "comparacao") return "none";
-  // Diagrams carry their own visual weight; a photo behind one only competes.
-  if (DIAGRAM_LAYOUTS.includes(slide.layout)) return "none";
-  return "panel";
 }
 
 function Img({ src, className }: { src: string; className: string }) {
