@@ -115,7 +115,8 @@ sistemas executam.
   \`emergency room team\`, \`medication vials\`. Ruim: \`sepsis pathophysiology\`
   (não é fotografável), \`foto realista de...\` (é prompt, e não está em inglês).
   A foto é **ambiente**, nunca informação: nunca busque achado clínico, exame de
-  imagem, lesão, ferida ou peça anatômica. Deixe vazio em \`comparacao\` e nos
+  imagem, lesão, ferida ou peça anatômica. Preencha sempre em \`capa\`, \`secao\`
+  e \`destaque\`, e na maioria dos \`topicos\`. Deixe vazio em \`comparacao\` e nos
   diagramas — esses já têm peso visual próprio.
 
 Regras:

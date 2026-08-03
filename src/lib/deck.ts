@@ -142,6 +142,21 @@ function cleanColumn(value: unknown) {
  * layout, a stray field, a bullet that came back as a number — has to be
  * dropped here rather than blowing up the whole generation.
  */
+/**
+ * Keeps a search term to its first `max` words.
+ *
+ * `citationQuery` and `imageQuery` are search terms, a dozen words at the very
+ * most — but they're free text from a model, and a model can get stuck. One got
+ * stuck here and emitted three thousand characters of invented trial names
+ * ("SAFE-T-AF-PREGNANCY study"), which overran the output limit and truncated
+ * the reply that carried it. Clamping is what stops a degenerate field from
+ * being sent to PubMed as a query, and the first dozen words are usually the
+ * sane part of it.
+ */
+function clampWords(text: string, max: number): string {
+  return text.trim().split(/\s+/).slice(0, max).join(" ");
+}
+
 export function sanitizeSlide(value: unknown): Slide | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;
@@ -184,7 +199,7 @@ export function sanitizeSlide(value: unknown): Slide | null {
   if (typeof raw.notes === "string" && raw.notes) slide.notes = raw.notes;
   if (typeof raw.source === "string" && raw.source) slide.source = raw.source;
   if (typeof raw.citationQuery === "string" && raw.citationQuery) {
-    slide.citationQuery = raw.citationQuery;
+    slide.citationQuery = clampWords(raw.citationQuery, 12);
   }
   if (Array.isArray(raw.refs)) {
     const refs = raw.refs.filter(
@@ -193,7 +208,7 @@ export function sanitizeSlide(value: unknown): Slide | null {
     if (refs.length > 0) slide.refs = refs;
   }
   if (typeof raw.imageQuery === "string" && raw.imageQuery) {
-    slide.imageQuery = raw.imageQuery;
+    slide.imageQuery = clampWords(raw.imageQuery, 6);
   }
   if (typeof raw.imageCredit === "string" && raw.imageCredit) {
     slide.imageCredit = raw.imageCredit;
