@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../l10n/app_localizations.dart';
+import '../slides/motion_scope.dart';
 import '../slides/slide_view.dart';
 import '../state/providers.dart';
 import '../theme/med_tokens.dart';
@@ -117,12 +118,19 @@ class _PresentScreenState extends ConsumerState<PresentScreen> {
               onPageChanged: (i) => ref
                   .read(currentSlideProvider(widget.deckId).notifier)
                   .state = i,
-              itemBuilder: (context, i) => Center(
-                child: SlideView(
-                  slide: deck.slides[i],
-                  index: i,
-                  total: deck.slides.length,
-                  deck: deck,
+              // Only the slide being looked at plays. A page view keeps its
+              // neighbours built, so without this the build would run for a
+              // slide nobody has reached yet and be over by the time they do.
+              itemBuilder: (context, i) => MotionScope(
+                plan: deck.slides[i].motion,
+                playing: i == index,
+                child: Center(
+                  child: SlideView(
+                    slide: deck.slides[i],
+                    index: i,
+                    total: deck.slides.length,
+                    deck: deck,
+                  ),
                 ),
               ),
             ),

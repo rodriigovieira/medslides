@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/deck.dart';
 import '../theme/med_tokens.dart';
+import 'motion_scope.dart';
 import 'slide_diagram.dart';
 import 'slide_view.dart';
 
@@ -25,9 +26,13 @@ class SlideBody extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Heading(slide: slide),
+          MotionChild(index: 0, child: _Heading(slide: slide)),
           SizedBox(height: 3 * m.u),
-          Expanded(child: SlideDiagram(slide: slide)),
+          // MotionChild goes *inside* Expanded: Expanded has to stay a direct
+          // child of the Column or the flex breaks.
+          Expanded(
+            child: MotionChild(index: 1, child: SlideDiagram(slide: slide)),
+          ),
         ],
       );
     }
@@ -90,6 +95,9 @@ class _Heading extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
+      // Not staged: the heading is one element as far as the build order is
+      // concerned, and the layouts that embed it stage it as such. Staging it
+      // here too would restart the indices inside an outer sequence.
       children: [
         Text(
           slide.title,
@@ -132,7 +140,7 @@ class _Capa extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.end,
-        children: [
+        children: staged([
           Container(
             width: 11 * m.u,
             height: 0.9 * m.u,
@@ -168,7 +176,7 @@ class _Capa extends StatelessWidget {
               ),
             ),
           ],
-        ],
+        ]),
       ),
     );
   }
@@ -185,7 +193,7 @@ class _Secao extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
-      children: [
+      children: staged([
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: 72 * m.u),
           child: Text(
@@ -215,7 +223,7 @@ class _Secao extends StatelessWidget {
             ),
           ),
         ],
-      ],
+      ]),
     );
   }
 }
@@ -228,17 +236,17 @@ class _Destaque extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = SlideMetrics.of(context);
-    final muted = m.dark
-        ? MedColors.paper.withValues(alpha: 0.85)
-        : MedColors.inkSoft;
-    final faint = m.dark
-        ? MedColors.paper.withValues(alpha: 0.65)
-        : MedColors.inkFaint;
+    final muted =
+        m.dark ? MedColors.paper.withValues(alpha: 0.85) : MedColors.inkSoft;
+    final faint =
+        m.dark ? MedColors.paper.withValues(alpha: 0.65) : MedColors.inkFaint;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
-      children: [
+      // Index 2 is the stat itself: the big number is what `numero` zooms and
+      // what `destacar` pulses, on the one layout that has one.
+      children: staged(statAt: 2, keyAt: 2, [
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: 62 * m.u),
           child: Text(
@@ -291,7 +299,7 @@ class _Destaque extends StatelessWidget {
               ),
             ),
         ],
-      ],
+      ]),
     );
   }
 }
@@ -308,7 +316,7 @@ class _Comparacao extends StatelessWidget {
     return _Fitted(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: staged([
           _Heading(slide: slide),
           SizedBox(height: 3.6 * m.u),
           IntrinsicHeight(
@@ -321,7 +329,7 @@ class _Comparacao extends StatelessWidget {
               ],
             ),
           ),
-        ],
+        ]),
       ),
     );
   }
@@ -394,7 +402,7 @@ class _Bullets extends StatelessWidget {
     return _Fitted(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: staged([
           _Heading(slide: slide),
           SizedBox(height: 3.4 * m.u),
           for (var i = 0; i < slide.bullets.length; i++)
@@ -450,7 +458,7 @@ class _Bullets extends StatelessWidget {
                 ],
               ),
             ),
-        ],
+        ]),
       ),
     );
   }

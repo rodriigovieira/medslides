@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../slides/motion.dart';
+
 /// Mirrors `Slide` / `Deck` in `src/lib/deck.ts`.
 ///
 /// Hand-written rather than generated: the shapes come out of Convex as plain
@@ -153,6 +155,10 @@ class Slide {
     this.imageUrl,
     this.imageCredit,
     this.imageStyle,
+    this.motion = const MotionPlan(
+      preset: MotionPreset.suave,
+      pace: MotionPace.normal,
+    ),
   });
 
   final SlideLayout layout;
@@ -170,6 +176,12 @@ class Slide {
   final String? imageUrl;
   final String? imageCredit;
   final String? imageStyle;
+
+  /// Screen-only motion for this slide. Resolved at parse time rather than
+  /// kept raw: both fields are free strings in the schema on purpose, so the
+  /// only sensible place for the "what does this unknown name mean" decision
+  /// is one hop from where it arrives.
+  final MotionPlan motion;
 
   bool get isIllustration => imageStyle == 'ilustracao';
 
@@ -225,6 +237,7 @@ class Slide {
       imageUrl: _string(raw['imageUrl']),
       imageCredit: _string(raw['imageCredit']),
       imageStyle: _string(raw['imageStyle']),
+      motion: MotionPlan.parse(raw['animation']),
     );
   }
 }
