@@ -20,6 +20,7 @@ type Op = {
   imageQuery?: string;
   citationQuery?: string;
   removerImagem?: boolean;
+  para?: number;
 };
 
 export const applyOps = internalMutation({
@@ -93,6 +94,20 @@ export const applyOps = internalMutation({
       applied++;
     }
 
+    // Reorders are *resolved* here, against the numbering the model was shown,
+    // but applied at the end. Doing them now would shift the indexes the
+    // removals and additions below still refer to; resolving to the slide object
+    // itself survives every later move of the array.
+    const moves: Array<{ node: object; to: number }> = [];
+    for (const op of ops.filter((o) => o.tipo === "mover")) {
+      const from = index(op);
+      const to = (op.para ?? 0) - 1;
+      if (from < 0 || from >= slides.length) continue;
+      if (to < 0 || to >= slides.length || to === from) continue;
+      moves.push({ node: slides[from], to });
+      applied++;
+    }
+
     // Then removals, highest index first so earlier indexes stay valid.
     for (const op of ops
       .filter((o) => o.tipo === "remover")
@@ -131,6 +146,14 @@ export const applyOps = internalMutation({
     }
 
     if (applied === 0) return empty;
+
+    for (const { node, to } of moves) {
+      const from = slides.indexOf(node as (typeof slides)[number]);
+      if (from === -1) continue; // removed by another op in the same request
+      slides.splice(from, 1);
+      slides.splice(Math.min(to, slides.length), 0, node as (typeof slides)[number]);
+    }
+
     // 25 is the generator's own ceiling; keep the editor inside it.
     slides = slides.slice(0, 25);
 

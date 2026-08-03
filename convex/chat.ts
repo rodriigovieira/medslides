@@ -26,7 +26,7 @@ const OPS_SCHEMA = {
         properties: {
           tipo: {
             type: "STRING",
-            enum: ["editar", "adicionar", "remover", "imagem"],
+            enum: ["editar", "adicionar", "remover", "imagem", "mover"],
           },
           slide: { type: "NUMBER" },
           layout: {
@@ -62,6 +62,7 @@ const OPS_SCHEMA = {
           },
           imageQuery: { type: "STRING" },
           citationQuery: { type: "STRING" },
+          para: { type: "NUMBER" },
         },
         required: ["tipo"],
         propertyOrdering: [
@@ -77,6 +78,7 @@ const OPS_SCHEMA = {
           "notas",
           "imageQuery",
           "citationQuery",
+          "para",
         ],
       },
     },
@@ -98,6 +100,8 @@ Operações:
   \`imageQuery\`. Para vários slides, devolva **uma operação por slide**, em
   posições consecutivas (4 slides depois do 6 → posições 7, 8, 9 e 10).
 - \`remover\` — só \`slide\`.
+- \`mover\` — muda a ordem. \`slide\` é a posição atual e \`para\` é a posição
+  final, ambas na numeração exibida.
 - \`imagem\` — troca a foto de um slide. Precisa de \`slide\` e \`imageQuery\`. Use
   também quando pedirem para *adicionar* foto a um slide que não tem.
 
