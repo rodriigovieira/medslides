@@ -34,6 +34,26 @@ final clientIdProvider = FutureProvider<String>((ref) async {
   return fresh;
 });
 
+/// Whether the intro has already been read.
+///
+/// Stored beside the client id in the keychain rather than in preferences, and
+/// therefore surviving a reinstall for the same reason the decks do: someone
+/// reinstalling is not a new user, and re-explaining the product to them is
+/// worse than showing them their decks.
+const _introSeenKey = 'medslides.introSeen';
+
+final introSeenProvider = FutureProvider<bool>((ref) async {
+  final storage = ref.watch(_secureStorageProvider);
+  return await storage.read(key: _introSeenKey) == 'true';
+});
+
+Future<void> markIntroSeen(WidgetRef ref) async {
+  await ref
+      .read(_secureStorageProvider)
+      .write(key: _introSeenKey, value: 'true');
+  ref.invalidate(introSeenProvider);
+}
+
 final convexProvider = FutureProvider<ConvexService>(
   (ref) => ConvexService.ensureInitialized(DeckApi.deploymentUrl),
 );
