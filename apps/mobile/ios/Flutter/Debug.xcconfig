@@ -1,6 +1,14 @@
 #include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
 #include "Generated.xcconfig"
-#include? "Signing.xcconfig"
 
-MEDSLIDES_TEAM_ID = 
+// Placeholders. The real values live in the gitignored Signing.xcconfig next
+// to this file — see ios/Flutter/Signing.example.xcconfig.
+//
+// The include has to come AFTER these, not before: in an xcconfig the last
+// assignment wins, so with the include on top the placeholders overwrote the
+// real bundle id and every archive failed looking for a profile matching
+// com.medslides.app.
+MEDSLIDES_TEAM_ID =
 MEDSLIDES_BUNDLE_ID = com.medslides.app
+
+#include? "Signing.xcconfig"
