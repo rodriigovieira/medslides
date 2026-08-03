@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'package:medslides_mobile/l10n/app_localizations.dart';
 import 'package:medslides_mobile/main.dart' as app;
 
 /// Drives one real deck from the topic field to the presenter.
@@ -26,15 +27,24 @@ void main() {
     _mark('home');
     await _hold(tester);
 
+    // Every label below is read from the app's own localisations rather than
+    // typed as Portuguese. The app follows the phone's language, so a
+    // hardcoded 'Gerar apresentação' passes on a Brazilian simulator and
+    // fails on an English one for reasons that have nothing to do with the
+    // app being broken.
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(MaterialApp)),
+    )!;
+
     // 1. Open the generate sheet. Which control does that depends on whether
     // this install has been run before: the intro shows once and its own
     // button opens the sheet, so both paths are real and the test takes
     // whichever it finds rather than assuming a wiped simulator.
-    if (find.text('Começar').evaluate().isNotEmpty) {
-      await tester.tap(find.text('Começar'));
+    if (find.text(l10n.start).evaluate().isNotEmpty) {
+      await tester.tap(find.text(l10n.start));
     } else {
-      expect(find.text('Nova apresentação'), findsOneWidget);
-      await tester.tap(find.text('Nova apresentação'));
+      expect(find.text(l10n.newDeck), findsOneWidget);
+      await tester.tap(find.text(l10n.newDeck));
     }
     await _settle(tester, const Duration(seconds: 2));
     _mark('generate-sheet');
@@ -52,7 +62,7 @@ void main() {
     await _hold(tester);
 
     // 3. Ask for it.
-    await tester.tap(find.text('Gerar apresentação'));
+    await tester.tap(find.text(l10n.generateDeck));
     await _settle(tester, const Duration(seconds: 4));
     _mark('generating');
 
@@ -60,7 +70,7 @@ void main() {
     // works; the rest arrive behind it while this loop keeps pumping.
     await _waitFor(
       tester,
-      () => find.text('Apresentar').evaluate().isNotEmpty,
+      () => find.text(l10n.present).evaluate().isNotEmpty,
       timeout: const Duration(minutes: 4),
       label: 'first slide',
     );
@@ -81,7 +91,7 @@ void main() {
     await _hold(tester);
 
     // 6. The presenter.
-    await tester.tap(find.text('Apresentar'));
+    await tester.tap(find.text(l10n.present));
     await _settle(tester, const Duration(seconds: 3));
     _mark('presenter');
     await _hold(tester);
@@ -104,16 +114,38 @@ void main() {
     // builds what is near the viewport, so the button is genuinely absent from
     // the tree until the list is moved.
     await tester.scrollUntilVisible(
-      find.text('Editar com IA'),
+      find.text(l10n.editWithAi),
       120,
       scrollable: find.byType(Scrollable).first,
     );
     await _settle(tester, const Duration(seconds: 1));
-    await tester.tap(find.text('Editar com IA'));
+    await tester.tap(find.text(l10n.editWithAi));
     await _settle(tester, const Duration(seconds: 3));
     _mark('chat-sheet');
     await _hold(tester);
-  }, timeout: const Timeout(Duration(minutes: 10)));
+
+    // 8. The sheet opens scoped to the slide you were looking at, which is the
+    // narrower and safer of the two. Both segments have to be reachable —
+    // they route to different backend calls.
+    expect(find.text(l10n.scopeDeck), findsOneWidget);
+    await tester.tap(find.text(l10n.scopeDeck));
+    await _settle(tester, const Duration(seconds: 2));
+    _mark('chat-scope-deck');
+    await _hold(tester);
+
+    // 9. Back out to the deck list and open the language menu, which is the
+    // only place the interface language can be pinned away from the phone's.
+    await tester.tapAt(const Offset(200, 60));
+    await _settle(tester, const Duration(seconds: 2));
+    await tester.pageBack();
+    await _settle(tester, const Duration(seconds: 2));
+    await tester.tap(find.byIcon(Icons.translate));
+    await _settle(tester, const Duration(seconds: 2));
+    expect(find.text(l10n.languageEnglish), findsOneWidget);
+    expect(find.text(l10n.languagePortuguese), findsOneWidget);
+    _mark('language-menu');
+    await _hold(tester);
+  }, timeout: const Timeout(Duration(minutes: 12)));
 }
 
 /// Screenshots are taken by a shell loop watching this output, not by
