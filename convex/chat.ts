@@ -4,7 +4,8 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action } from "./_generated/server";
 import { type Slide } from "../src/lib/deck";
-import { generateStructured } from "./lib/ai";
+import { TruncatedJsonError, generateStructured } from "./lib/ai";
+import { completeObjectsIn } from "../src/lib/partial";
 
 /**
  * The AI editor returns *operations*, not a rewritten deck.
@@ -118,6 +119,9 @@ sistemas executam.
   diagramas — esses já têm peso visual próprio.
 
 Regras:
+- No máximo **6 slides novos** por pedido. Se pedirem mais, faça 6 e diga na
+  \`resposta\` que dá para pedir o resto em seguida.
+- \`notas\` é opcional aqui: escreva no máximo 2 frases, ou omita.
 - Mexa **apenas** no que foi pedido. Se pedirem para encurtar o slide 4, não
   reescreva o 5.
 - Se o pedido não for claro, não invente: devolva \`operacoes\` vazio e use a
@@ -198,16 +202,32 @@ export const send = action({
 
     let reply = "Não consegui aplicar essa mudança.";
     try {
-      const result = (await generateStructured(
-        CHAT_SYSTEM,
-        `Apresentação atual (${deck.slides.length} slides):\n\n${describeDeck(
-          deck.slides as Slide[],
-        )}\n\nPedido: ${text}`,
-        OPS_SCHEMA,
-      )) as { resposta?: string; operacoes?: Op[] };
+      const prompt = `Apresentação atual (${deck.slides.length} slides):\n\n${describeDeck(
+        deck.slides as Slide[],
+      )}\n\nPedido: ${text}`;
 
-      const ops = Array.isArray(result.operacoes) ? result.operacoes : [];
-      reply = result.resposta?.trim() || "Pronto.";
+      let ops: Op[];
+      let reported: string | undefined;
+      try {
+        const result = (await generateStructured(
+          CHAT_SYSTEM,
+          prompt,
+          OPS_SCHEMA,
+        )) as { resposta?: string; operacoes?: Op[] };
+        ops = Array.isArray(result.operacoes) ? result.operacoes : [];
+        reported = result.resposta;
+      } catch (error) {
+        // Asking for four slides at once can outrun the output limit, and the
+        // JSON then ends mid-string. The operations that closed are intact, so
+        // apply those instead of losing the whole request — the alternative is
+        // a user who asked for four slides getting an error and none.
+        if (!(error instanceof TruncatedJsonError)) throw error;
+        ops = completeObjectsIn<Op>(error.raw, "operacoes");
+        if (ops.length === 0) throw error;
+        console.warn(`Resposta cortada; ${ops.length} operações salvas.`);
+      }
+
+      reply = reported?.trim() || "Pronto.";
 
       if (ops.length > 0) {
         const result = await ctx.runMutation(internal.chatOps.applyOps, {

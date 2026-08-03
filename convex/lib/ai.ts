@@ -191,6 +191,27 @@ export async function generateDeckText(
 }
 
 /**
+ * The model's answer ran past the output limit and stops mid-token, so the JSON
+ * never closes. Carries the raw text: for a list of operations, the ones that
+ * did close are perfectly good, and throwing the whole reply away over the last
+ * one costs the user the entire request.
+ */
+export class TruncatedJsonError extends Error {
+  constructor(readonly raw: string) {
+    super("A resposta do modelo veio cortada.");
+    this.name = "TruncatedJsonError";
+  }
+}
+
+function parseOrTruncated(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new TruncatedJsonError(text);
+  }
+}
+
+/**
  * One-shot structured call, for jobs that aren't the deck stream — currently
  * the chat editor. Same provider order and fallback rule as `generateDeckText`.
  */
@@ -214,7 +235,7 @@ export async function generateStructured(
             responseMimeType: "application/json",
             responseSchema: schema,
             temperature: 0.4,
-            maxOutputTokens: 8192,
+            maxOutputTokens: 16384,
           },
         }),
       },
@@ -225,7 +246,7 @@ export async function generateStructured(
     };
     const text = body.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new ProviderError("gemini", null, "Resposta vazia.");
-    return JSON.parse(text) as unknown;
+    return parseOrTruncated(text);
   };
 
   const openai = async () => {
@@ -240,7 +261,7 @@ export async function generateStructured(
       body: JSON.stringify({
         model: OPENAI_MODEL,
         temperature: 0.4,
-        max_tokens: 8192,
+        max_tokens: 16384,
         response_format: { type: "json_object" },
         messages: [
           {
@@ -257,7 +278,7 @@ export async function generateStructured(
     };
     const text = body.choices?.[0]?.message?.content;
     if (!text) throw new ProviderError("openai", null, "Resposta vazia.");
-    return JSON.parse(text) as unknown;
+    return parseOrTruncated(text);
   };
 
   try {

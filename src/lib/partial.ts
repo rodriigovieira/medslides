@@ -63,14 +63,26 @@ export function parsePartialDeck(text: string): PartialDeck {
   const slidesKey = text.indexOf('"slides"');
   const headerLimit = slidesKey === -1 ? text.length : slidesKey;
 
-  const result: PartialDeck = {
+  return {
     title: topLevelString(text, "title", headerLimit),
     subtitle: topLevelString(text, "subtitle", headerLimit),
-    slides: [],
+    slides: completeObjectsIn<Slide>(text, "slides"),
   };
+}
 
-  if (slidesKey === -1) return result;
-  const arrayStart = text.indexOf("[", slidesKey);
+/**
+ * Every object inside the array at `key` whose closing brace has arrived.
+ *
+ * Serves both halves of the same problem: a deck arriving over a stream, and a
+ * one-shot answer cut off by the output limit. In both cases the objects that
+ * did close are complete and usable, and the alternative — waiting for, or
+ * insisting on, a well-formed whole — throws away work that is already good.
+ */
+export function completeObjectsIn<T>(text: string, key: string): T[] {
+  const result: T[] = [];
+  const keyAt = text.indexOf(`"${key}"`);
+  if (keyAt === -1) return result;
+  const arrayStart = text.indexOf("[", keyAt);
   if (arrayStart === -1) return result;
 
   let depth = 0;
@@ -101,10 +113,10 @@ export function parsePartialDeck(text: string): PartialDeck {
       depth--;
       if (depth === 0 && objStart !== -1) {
         try {
-          result.slides.push(JSON.parse(text.slice(objStart, i + 1)) as Slide);
+          result.push(JSON.parse(text.slice(objStart, i + 1)) as T);
         } catch {
           // Shouldn't happen — a balanced object should parse. Skip it rather
-          // than losing the slides that came before.
+          // than losing the ones that came before.
         }
         objStart = -1;
       }
