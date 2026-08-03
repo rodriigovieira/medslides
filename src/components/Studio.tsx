@@ -12,6 +12,7 @@ import {
   subscribeToClientId,
 } from "@/lib/session";
 import { Composer } from "./Composer";
+import { DemoButton } from "./DemoButton";
 import { DeckWorkspace } from "./DeckWorkspace";
 import { Landing } from "./Landing";
 import { Presenter } from "./Presenter";
@@ -104,6 +105,7 @@ export function Studio() {
   return (
     <Landing error={error} clientId={clientId} onOpenDeck={setDeckId}>
       <Composer onSubmit={handleSubmit} disabled={submitting} />
+      <DemoButton onOpen={setDeckId} />
     </Landing>
   );
 }

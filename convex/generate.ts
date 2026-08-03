@@ -144,8 +144,15 @@ export const enrich = internalAction({
     slideIndexes: v.array(v.number()),
     /** Slides that must get a photo, budget rules bypassed — asked for by name. */
     imageIndexes: v.array(v.number()),
+    /**
+     * Move the deck to `pronto` when this finishes. Set by the demo deck, whose
+     * text is already written when it is created: without it the deck would sit
+     * on the "buscando referências" bar forever, which is a bad first thing to
+     * show someone.
+     */
+    finishPhase: v.optional(v.boolean()),
   },
-  handler: async (ctx, { deckId, slideIndexes, imageIndexes }) => {
+  handler: async (ctx, { deckId, slideIndexes, imageIndexes, finishPhase }) => {
     const deck = await ctx.runQuery(internal.decks.load, { deckId });
     if (!deck) return;
     const slides = deck.slides as Slide[];
@@ -162,7 +169,16 @@ export const enrich = internalAction({
       }
     }
 
-    if (imageTargets.length === 0) return;
+    if (imageTargets.length === 0) {
+      if (finishPhase) {
+        await ctx.runMutation(internal.decks.setPhase, { deckId, phase: "pronto" });
+      }
+      return;
+    }
+
+    if (finishPhase) {
+      await ctx.runMutation(internal.decks.setPhase, { deckId, phase: "imagens" });
+    }
 
     let attached: number[] = [];
     try {
@@ -175,6 +191,10 @@ export const enrich = internalAction({
     // promised "buscando a imagem…", and a promise that quietly never resolves
     // is the failure the user actually sees: the slide looks unchanged and the
     // product looks broken.
+    if (finishPhase) {
+      await ctx.runMutation(internal.decks.setPhase, { deckId, phase: "pronto" });
+    }
+
     const missed = imageTargets.filter((i) => !attached.includes(i));
     if (missed.length > 0) {
       const which =

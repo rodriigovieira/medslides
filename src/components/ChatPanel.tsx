@@ -5,6 +5,7 @@ import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { getClientId } from "@/lib/session";
+import { MotionCheatSheet } from "./MotionCheatSheet";
 
 export type ChatMessage = { role: "user" | "assistant"; text: string; at: number };
 
@@ -150,6 +151,11 @@ export function ChatPanel({
               Ajustando os slides…
             </div>
           )}
+
+          {/* Always present, collapsed. The animation vocabulary is only
+              reachable by typing the right sentence, so without a menu it is
+              invisible — nobody guesses that "herói" is a word this understands. */}
+          <MotionCheatSheet onSend={(prompt) => void submit(prompt)} />
         </div>
 
         {error && (

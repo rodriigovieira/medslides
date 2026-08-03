@@ -25,7 +25,14 @@ final class DictationPlugin: NSObject {
   /// not a dictionary. The miner already ranks terms, so we take the head.
   private static let maxContextualStrings = 100
 
-  private let recognizer: SFSpeechRecognizer?
+  /// Rebuilt whenever Dart asks for a different language — see `useLocale`.
+  /// A recogniser is bound to one locale at construction, so following the
+  /// app's language means replacing it, not configuring it.
+  private var recognizer: SFSpeechRecognizer?
+
+  /// Which locale `recognizer` was built for, so switching back and forth
+  /// between the two app languages does not rebuild it on every tap.
+  private var recognizerLocale: String?
   private let audioEngine = AVAudioEngine()
 
   private var request: SFSpeechAudioBufferRecognitionRequest?
@@ -89,11 +96,29 @@ final class DictationPlugin: NSObject {
   private var languageModel: SFSpeechLanguageModel.Configuration?
 
   override init() {
-    // Locale is fixed to the user's own setting; the miner's vocabulary is
-    // English-heavy but the recogniser still handles mixed input.
+    // Starts on the phone's own setting. Dart overrides this with the app's
+    // resolved language before listening — dictating in the language the
+    // interface is in is the whole point, and someone running the app in
+    // Portuguese on an English phone was previously transcribed as English,
+    // which produces confident nonsense rather than an obvious failure.
     self.recognizer = SFSpeechRecognizer(locale: Locale.current)
       ?? SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
+    self.recognizerLocale = self.recognizer?.locale.identifier
     super.init()
+  }
+
+  /// Point the recogniser at `identifier` (e.g. "pt-BR", "en-US").
+  ///
+  /// Falls back to the phone's locale, then to en-US, because a device
+  /// without that language installed returns nil rather than throwing, and a
+  /// nil recogniser reads to the user as dictation being broken.
+  private func useLocale(_ identifier: String?) {
+    guard let identifier, !identifier.isEmpty else { return }
+    guard identifier != recognizerLocale else { return }
+    guard let next = SFSpeechRecognizer(locale: Locale(identifier: identifier))
+    else { return }
+    recognizer = next
+    recognizerLocale = identifier
   }
 
   static func register(with registrar: FlutterPluginRegistrar) {
@@ -120,6 +145,7 @@ final class DictationPlugin: NSObject {
       prepareLanguageModel(phrases: phrases, version: version, result: result)
     case "start":
       let args = call.arguments as? [String: Any] ?? [:]
+      useLocale(args["locale"] as? String)
       start(
         contextualStrings: args["contextualStrings"] as? [String] ?? [],
         onDevice: args["onDevice"] as? Bool ?? true,

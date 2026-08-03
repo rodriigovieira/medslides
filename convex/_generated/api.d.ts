@@ -12,6 +12,7 @@ import type * as aiImage from "../aiImage.js";
 import type * as chat from "../chat.js";
 import type * as chatOps from "../chatOps.js";
 import type * as decks from "../decks.js";
+import type * as demo from "../demo.js";
 import type * as generate from "../generate.js";
 import type * as images from "../images.js";
 import type * as lib_ai from "../lib/ai.js";
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   chat: typeof chat;
   chatOps: typeof chatOps;
   decks: typeof decks;
+  demo: typeof demo;
   generate: typeof generate;
   images: typeof images;
   "lib/ai": typeof lib_ai;
