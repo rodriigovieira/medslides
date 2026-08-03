@@ -2,27 +2,52 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../dictation/dictation_button.dart';
+import '../l10n/app_localizations.dart';
 import '../models/deck.dart';
 import '../state/providers.dart';
 import '../theme/med_tokens.dart';
 
-/// Editing the deck by asking.
+/// Which slides an instruction is allowed to touch.
+enum EditScope { slide, deck }
+
+/// Editing by asking, at one of two scopes.
 ///
-/// The conversation lives on the deck document, not in this widget, so it is
-/// the same history the web shows and it survives closing the sheet. Slide
-/// changes arrive through the deck subscription rather than as a reply — by the
-/// time the assistant's sentence appears, the slides behind the sheet have
-/// already changed.
+/// Both live in one sheet with one composer rather than two entry points on
+/// the deck screen, because the distinction is about *reach*, not about a
+/// different feature — and putting it on a segmented control says "only this
+/// slide changes" far more plainly than a second button would. It also means
+/// the dictation button is shared: whichever scope you are in, you can talk.
+///
+/// The two scopes are genuinely different calls. Deck-wide (`chat:send`)
+/// appends to the conversation stored on the deck document, so it is the same
+/// history the web shows and it survives closing the sheet. Slide-scoped
+/// (`chat:editOne`) is a one-shot that returns a reply and writes nothing —
+/// so its exchange is held here, and it is gone when the sheet closes.
+///
+/// In both cases the slide changes arrive through the deck subscription
+/// rather than as a reply: by the time the assistant's sentence appears, the
+/// slides behind the sheet have already changed.
 class ChatSheet extends ConsumerStatefulWidget {
-  const ChatSheet({super.key, required this.deckId});
+  const ChatSheet({
+    super.key,
+    required this.deckId,
+    required this.slideIndex,
+  });
 
   final String deckId;
 
-  static Future<void> show(BuildContext context, {required String deckId}) =>
+  /// The slide the deck screen is showing — what "this slide" means.
+  final int slideIndex;
+
+  static Future<void> show(
+    BuildContext context, {
+    required String deckId,
+    required int slideIndex,
+  }) =>
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
-        builder: (_) => ChatSheet(deckId: deckId),
+        builder: (_) => ChatSheet(deckId: deckId, slideIndex: slideIndex),
       );
 
   @override
@@ -32,15 +57,23 @@ class ChatSheet extends ConsumerStatefulWidget {
 class _ChatSheetState extends ConsumerState<ChatSheet> {
   final _controller = TextEditingController();
   final _scroll = ScrollController();
+
+  EditScope _scope = EditScope.slide;
   bool _busy = false;
   String? _error;
 
-  static const _suggestions = [
-    'Adicione 3 slides sobre contraindicações',
-    'No slide 4, enfatize a dose',
-    'Troque a imagem do slide 2',
-    'Gere uma ilustração para o slide 3',
-  ];
+  /// The slide-scoped exchange. Deck-wide messages come from the deck
+  /// document instead — `chat:editOne` deliberately stores nothing, so
+  /// without this the user's own instruction would vanish as they sent it.
+  final _slideMessages = <ChatMessage>[];
+
+  /// A message that exists only in this sheet. `at` is a real timestamp so it
+  /// sorts alongside anything else, even though nothing persists it.
+  ChatMessage _local(String text, String role) => ChatMessage(
+        role: role,
+        text: text,
+        at: DateTime.now().millisecondsSinceEpoch,
+      );
 
   @override
   void dispose() {
@@ -53,20 +86,36 @@ class _ChatSheetState extends ConsumerState<ChatSheet> {
     final message = text.trim();
     if (message.isEmpty || _busy) return;
 
+    final slideScoped = _scope == EditScope.slide;
     setState(() {
       _busy = true;
       _error = null;
+      if (slideScoped) {
+        _slideMessages.add(_local(message, 'user'));
+      }
     });
     _controller.clear();
 
     try {
       final api = await ref.read(deckApiProvider.future);
       final clientId = await ref.read(clientIdProvider.future);
-      await api.chat(
-        deckId: widget.deckId,
-        clientId: clientId,
-        message: message,
-      );
+      if (slideScoped) {
+        final reply = await api.editSlide(
+          deckId: widget.deckId,
+          clientId: clientId,
+          slideIndex: widget.slideIndex,
+          instruction: message,
+        );
+        if (mounted) {
+          setState(() => _slideMessages.add(_local(reply, 'assistant')));
+        }
+      } else {
+        await api.chat(
+          deckId: widget.deckId,
+          clientId: clientId,
+          message: message,
+        );
+      }
     } catch (error) {
       if (mounted) {
         setState(() => _error = error.toString().split('\n').first);
@@ -78,9 +127,27 @@ class _ChatSheetState extends ConsumerState<ChatSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final deck = ref.watch(deckProvider(widget.deckId)).valueOrNull;
-    final messages = deck?.chat ?? const <ChatMessage>[];
+    final slideScoped = _scope == EditScope.slide;
+    final messages =
+        slideScoped ? _slideMessages : (deck?.chat ?? const <ChatMessage>[]);
     final insets = MediaQuery.viewInsetsOf(context);
+    final slideNumber = widget.slideIndex + 1;
+
+    final suggestions = slideScoped
+        ? [
+            l10n.suggestSlideOne,
+            l10n.suggestSlideTwo,
+            l10n.suggestSlideThree,
+            l10n.suggestSlideFour,
+          ]
+        : [
+            l10n.suggestDeckOne,
+            l10n.suggestDeckTwo,
+            l10n.suggestDeckThree,
+            l10n.suggestDeckFour,
+          ];
 
     return Padding(
       padding: EdgeInsets.only(bottom: insets.bottom),
@@ -97,20 +164,62 @@ class _ChatSheetState extends ConsumerState<ChatSheet> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(MedSpace.gutter, 14, MedSpace.gutter, 10),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                MedSpace.gutter,
+                14,
+                MedSpace.gutter,
+                10,
+              ),
               child: Row(
                 children: [
-                  Text('✦ ', style: TextStyle(color: MedColors.clinical)),
+                  const Text('✦ ', style: TextStyle(color: MedColors.clinical)),
                   Text(
-                    'Editar com IA',
-                    style: TextStyle(
+                    l10n.editWithAi,
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: MedColors.ink,
                     ),
                   ),
                 ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                MedSpace.gutter,
+                0,
+                MedSpace.gutter,
+                12,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<EditScope>(
+                  segments: [
+                    ButtonSegment(
+                      value: EditScope.slide,
+                      label: Text(l10n.scopeSlideNumbered(slideNumber)),
+                    ),
+                    ButtonSegment(
+                      value: EditScope.deck,
+                      label: Text(l10n.scopeDeck),
+                    ),
+                  ],
+                  selected: {_scope},
+                  showSelectedIcon: false,
+                  style: SegmentedButton.styleFrom(
+                    textStyle: const TextStyle(fontSize: 13),
+                    selectedBackgroundColor: MedColors.ink,
+                    selectedForegroundColor: MedColors.paperRaised,
+                    side: const BorderSide(color: MedColors.rule),
+                  ),
+                  // Locked while a request is in flight: the reply is routed
+                  // by scope, so switching mid-call would file the answer
+                  // under the wrong conversation.
+                  onSelectionChanged: _busy
+                      ? null
+                      : (next) => setState(() => _scope = next.first),
+                ),
               ),
             ),
             const Divider(height: 1),
@@ -121,8 +230,10 @@ class _ChatSheetState extends ConsumerState<ChatSheet> {
                 padding: const EdgeInsets.all(MedSpace.gutter),
                 children: [
                   if (_busy)
-                    const _Bubble(
-                      text: 'Ajustando os slides…',
+                    _Bubble(
+                      text: slideScoped
+                          ? l10n.adjustingSlide
+                          : l10n.adjustingSlides,
                       fromUser: false,
                       faded: true,
                     ),
@@ -133,7 +244,7 @@ class _ChatSheetState extends ConsumerState<ChatSheet> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        for (final suggestion in _suggestions)
+                        for (final suggestion in suggestions)
                           OutlinedButton(
                             onPressed: () => _send(suggestion),
                             style: OutlinedButton.styleFrom(
@@ -147,10 +258,14 @@ class _ChatSheetState extends ConsumerState<ChatSheet> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'Diga o que quer mudar e eu ajusto os slides — um slide, '
-                      'vários, ou a imagem de um deles. Só mexo no que você pedir.',
-                      style: TextStyle(color: MedColors.inkSoft, height: 1.5),
+                    Text(
+                      slideScoped
+                          ? l10n.chatSlideBody(slideNumber)
+                          : l10n.chatDeckBody,
+                      style: const TextStyle(
+                        color: MedColors.inkSoft,
+                        height: 1.5,
+                      ),
                     ),
                   ],
                 ],
@@ -179,8 +294,10 @@ class _ChatSheetState extends ConsumerState<ChatSheet> {
                       maxLines: 4,
                       maxLength: 600,
                       textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(
-                        hintText: 'Ex.: deixe o slide 4 mais curto',
+                      decoration: InputDecoration(
+                        hintText: slideScoped
+                            ? l10n.chatSlideHint
+                            : l10n.chatDeckHint,
                         counterText: '',
                       ),
                       onSubmitted: _send,

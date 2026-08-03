@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/deck.dart';
 import '../slides/slide_view.dart';
 import '../state/providers.dart';
@@ -33,15 +34,17 @@ class DeckScreen extends ConsumerWidget {
       appBar: AppBar(
         title: async.maybeWhen(
           data: (deck) => Text(
-            deck == null || deck.title.isEmpty ? 'Apresentação' : deck.title,
+            deck == null || deck.title.isEmpty
+                ? AppLocalizations.of(context)!.deckFallbackTitle
+                : deck.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          orElse: () => const Text('Apresentação'),
+          orElse: () => Text(AppLocalizations.of(context)!.deckFallbackTitle),
         ),
         actions: [
           IconButton(
-            tooltip: 'Compartilhar',
+            tooltip: AppLocalizations.of(context)!.share,
             onPressed: () => Share.shareUri(Uri.parse(webUrl(deckId))),
             icon: const Icon(Icons.ios_share, size: 20),
           ),
@@ -57,7 +60,9 @@ class DeckScreen extends ConsumerWidget {
         ),
         data: (deck) {
           if (deck == null) {
-            return const Center(child: Text('Apresentação não encontrada.'));
+            return Center(
+              child: Text(AppLocalizations.of(context)!.deckNotFound),
+            );
           }
           if (deck.slides.isEmpty) {
             return _Waiting(deck: deck);
@@ -83,7 +88,7 @@ class _Waiting extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(MedSpace.gutter),
           child: Text(
-            deck.error ?? 'Não consegui gerar esta apresentação.',
+            deck.error ?? AppLocalizations.of(context)!.deckGenerateFailed,
             textAlign: TextAlign.center,
             style: const TextStyle(color: MedColors.signal),
           ),
@@ -195,15 +200,16 @@ class _DeckBody extends ConsumerWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                '${index + 1} de ${deck.slides.length}',
+                AppLocalizations.of(context)!
+                    .slideOfTotal(index + 1, deck.slides.length),
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 12.5, color: MedColors.inkFaint),
               ),
               const SizedBox(height: 14),
-              _Actions(deck: deck),
+              _Actions(deck: deck, slideIndex: index),
               if (slide.notes != null) ...[
                 const SizedBox(height: 22),
-                const _SectionLabel('Notas do apresentador'),
+                _SectionLabel(AppLocalizations.of(context)!.speakerNotes),
                 const SizedBox(height: 8),
                 Text(
                   slide.notes!,
@@ -216,7 +222,7 @@ class _DeckBody extends ConsumerWidget {
               ],
               if (deck.citedOn(slide).isNotEmpty) ...[
                 const SizedBox(height: 22),
-                const _SectionLabel('Referências deste slide'),
+                _SectionLabel(AppLocalizations.of(context)!.slideReferences),
                 const SizedBox(height: 8),
                 for (final ref in deck.citedOn(slide))
                   Padding(
@@ -246,9 +252,12 @@ double _previewHeight(BuildContext context) {
 }
 
 class _Actions extends ConsumerWidget {
-  const _Actions({required this.deck});
+  const _Actions({required this.deck, required this.slideIndex});
 
   final Deck deck;
+
+  /// Which slide "this slide" means in the AI sheet — the one on screen.
+  final int slideIndex;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -271,7 +280,7 @@ class _Actions extends ConsumerWidget {
                       ),
                     ),
             icon: const Icon(Icons.play_arrow_rounded, size: 20),
-            label: const Text('Apresentar'),
+            label: Text(AppLocalizations.of(context)!.present),
           ),
         ),
         const SizedBox(height: 10),
@@ -281,9 +290,13 @@ class _Actions extends ConsumerWidget {
               child: OutlinedButton.icon(
                 onPressed: deck.isWorking
                     ? null
-                    : () => ChatSheet.show(context, deckId: deck.id),
+                    : () => ChatSheet.show(
+                          context,
+                          deckId: deck.id,
+                          slideIndex: slideIndex,
+                        ),
                 icon: const Text('✦', style: TextStyle(fontSize: 15)),
-                label: const Text('Editar com IA'),
+                label: Text(AppLocalizations.of(context)!.editWithAi),
               ),
             ),
             const SizedBox(width: 10),
