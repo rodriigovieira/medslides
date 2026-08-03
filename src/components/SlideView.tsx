@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import {
   DIAGRAM_LAYOUTS,
   citationLine,
@@ -6,6 +9,7 @@ import {
 } from "@/lib/deck";
 import { fitSlide, sized } from "@/lib/fit";
 import { Editable, type EditHandler } from "./Editable";
+import { BulletTools } from "./BulletTools";
 import { Diagram } from "./Diagram";
 
 /**
@@ -23,6 +27,7 @@ export function SlideView({
   total,
   references,
   onEdit,
+  onAskAi,
 }: {
   slide: Slide;
   index: number;
@@ -30,6 +35,8 @@ export function SlideView({
   references?: Reference[];
   /** Present only in the workspace's main slide — never on thumbnails. */
   onEdit?: EditHandler;
+  /** Opens the slide's AI popover with a bullet-specific instruction. */
+  onAskAi?: (instruction: string) => void;
 }) {
   const image = slide.imageUrl;
   const treatment = imageTreatment(slide);
@@ -91,7 +98,13 @@ export function SlideView({
           paddingBottom: `${(6.5 + fit.footer - 2.6).toFixed(2)}cqw`,
         }}
       >
-        <Body slide={slide} dark={dark} scale={fit.scale} onEdit={onEdit} />
+        <Body
+          slide={slide}
+          dark={dark}
+          scale={fit.scale}
+          onEdit={onEdit}
+          onAskAi={onAskAi}
+        />
       </div>
 
       {slide.layout !== "capa" && (
@@ -186,18 +199,69 @@ function Body({
   dark,
   scale,
   onEdit,
+  onAskAi,
 }: {
   slide: Slide;
   dark: boolean;
   scale: number;
   onEdit?: EditHandler;
+  onAskAi?: (instruction: string) => void;
 }) {
   const editable = Boolean(onEdit);
+  // Which bullet currently shows its toolbar. Reordering and deleting a bullet
+  // are impossible with in-place editing alone — this is that missing half.
+  const [active, setActive] = useState<number | null>(null);
+  const bullets = slide.bullets ?? [];
+
   const setBullet = (i: number) => (text: string) => {
-    const bullets = [...(slide.bullets ?? [])];
-    bullets[i] = text;
-    onEdit?.({ bullets });
+    const next = [...bullets];
+    next[i] = text;
+    onEdit?.({ bullets: next });
   };
+  /**
+   * The toolbar deliberately keeps focus on the bullet being edited, but that
+   * editor freezes its text while focused — so reordering underneath it would
+   * leave it showing the old value and write that value back on blur. Release
+   * focus first, then reorder.
+   */
+  const releaseFocus = () => {
+    const el = document.activeElement;
+    if (el instanceof HTMLElement) el.blur();
+  };
+  const moveBullet = (i: number, delta: number) => {
+    const j = i + delta;
+    if (j < 0 || j >= bullets.length) return;
+    releaseFocus();
+    const next = [...bullets];
+    [next[i], next[j]] = [next[j], next[i]];
+    onEdit?.({ bullets: next });
+    setActive(j);
+  };
+  const removeBullet = (i: number) => {
+    if (bullets.length <= 1) return;
+    releaseFocus();
+    onEdit?.({ bullets: bullets.filter((_, k) => k !== i) });
+    setActive(null);
+  };
+  const bulletTools = (i: number) =>
+    editable && active === i ? (
+      <BulletTools
+        canMoveUp={i > 0}
+        canMoveDown={i < bullets.length - 1}
+        canRemove={bullets.length > 1}
+        onMoveUp={() => moveBullet(i, -1)}
+        onMoveDown={() => moveBullet(i, 1)}
+        onRemove={() => removeBullet(i)}
+        onAskAi={
+          onAskAi
+            ? () =>
+                onAskAi(
+                  `Reescreva o tópico "${bullets[i]}" deste slide, mantendo os demais.`,
+                )
+            : undefined
+        }
+      />
+    ) : null;
   const muted = dark ? "text-paper/85" : "text-ink-soft";
   const faint = dark ? "text-paper/65" : "text-ink-faint";
   const rule = dark ? "bg-paper" : "bg-clinical";
@@ -351,8 +415,8 @@ function Body({
             className="mt-[3.4cqw]"
             style={{ display: "grid", gap: sized(2, scale) }}
           >
-            {(slide.bullets ?? []).map((b, i) => (
-              <li key={i} className="flex gap-[1.8cqw]">
+            {bullets.map((b, i) => (
+              <li key={i} className="relative flex gap-[1.8cqw]">
                 <span
                   className="mt-[0.5cqw] font-[family-name:var(--font-display)] leading-none text-signal tabular-nums"
                   style={{ fontSize: sized(2.4, scale) }}
@@ -363,9 +427,11 @@ function Body({
                   value={b}
                   editable={editable}
                   onCommit={setBullet(i)}
+                  onFocus={() => setActive(i)}
                   className="leading-snug"
                   style={{ fontSize: sized(2.3, scale) }}
                 />
+                {bulletTools(i)}
               </li>
             ))}
           </ul>
@@ -380,8 +446,8 @@ function Body({
             className="mt-[3.4cqw]"
             style={{ display: "grid", gap: sized(1.9, scale) }}
           >
-            {(slide.bullets ?? []).map((b, i) => (
-              <li key={i} className="flex gap-[1.8cqw]">
+            {bullets.map((b, i) => (
+              <li key={i} className="relative flex gap-[1.8cqw]">
                 <span
                   className={`mt-[1.1cqw] h-[0.7cqw] w-[0.7cqw] shrink-0 rounded-full ${
                     dark ? "bg-paper/80" : "bg-clinical"
@@ -391,9 +457,11 @@ function Body({
                   value={b}
                   editable={editable}
                   onCommit={setBullet(i)}
+                  onFocus={() => setActive(i)}
                   className={`leading-snug ${muted}`}
                   style={{ fontSize: sized(2.3, scale) }}
                 />
+                {bulletTools(i)}
               </li>
             ))}
           </ul>

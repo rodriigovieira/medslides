@@ -7,6 +7,7 @@ import { SlideView } from "./SlideView";
 import { PhaseBar, SlideSkeleton, phaseLabel, type Phase } from "./Progress";
 import type { EditHandler } from "./Editable";
 import { ChatPanel, type ChatMessage } from "./ChatPanel";
+import { SlidePrompt } from "./SlidePrompt";
 import type { Id } from "../../convex/_generated/dataModel";
 
 export function DeckWorkspace({
@@ -48,6 +49,8 @@ export function DeckWorkspace({
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const [chatOpen, setChatOpen] = useState(false);
+  const [promptOpen, setPromptOpen] = useState(false);
+  const [promptSeed, setPromptSeed] = useState<string | undefined>();
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const active = pinned ?? (streaming ? deck.slides.length - 1 : 0);
@@ -216,13 +219,48 @@ export function DeckWorkspace({
                       ? (patch) => onEditSlide(clamped, patch)
                       : undefined
                   }
+                  onAskAi={
+                    chat && !busy
+                      ? (instruction) => {
+                          setPromptSeed(instruction);
+                          setPromptOpen(true);
+                        }
+                      : undefined
+                  }
                 />
               </div>
 
               {onEditSlide && !busy && (
-                <p className="-mt-2 w-full max-w-4xl text-xs text-ink-faint">
-                  Toque em qualquer texto do slide para editar.
-                </p>
+                <div className="-mt-2 flex w-full max-w-4xl items-center gap-3">
+                  <p className="text-xs text-ink-faint">
+                    Toque em qualquer texto do slide para editar.
+                  </p>
+                  {chat && (
+                    <button
+                      onClick={() => {
+                        setPromptSeed(undefined);
+                        setPromptOpen((v) => !v);
+                      }}
+                      className="ml-auto flex items-center gap-1.5 rounded-full border border-rule px-3 py-1.5 text-xs text-ink-soft transition hover:border-clinical/60 hover:text-clinical-deep"
+                    >
+                      <span className="text-clinical" aria-hidden>
+                        ✦
+                      </span>
+                      Editar este slide com IA
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {chat && (
+                <SlidePrompt
+                  key={`${clamped}:${promptSeed ?? ""}`}
+                  deckId={chat.deckId}
+                  slideIndex={clamped}
+                  seed={promptSeed}
+                  open={promptOpen && !busy}
+                  onClose={() => setPromptOpen(false)}
+                />
               )}
 
               {/* On a phone the navigator belongs directly under the slide. It

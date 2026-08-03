@@ -111,3 +111,60 @@ export const appendMessage = internalMutation({
     await ctx.db.patch(deckId, { chat });
   },
 });
+
+/**
+ * Applies a one-slide patch. Text fields go through `sanitizeSlide`, then the
+ * fields the model never sees — attached photo, verified reference numbers, the
+ * citation query — are copied back from the stored slide. Skipping that step is
+ * how an "edit" quietly deletes a citation.
+ */
+export const applySlidePatch = internalMutation({
+  args: {
+    deckId: v.id("decks"),
+    slideIndex: v.number(),
+    patch: v.string(),
+  },
+  handler: async (ctx, { deckId, slideIndex, patch: raw }) => {
+    const deck = await ctx.db.get(deckId);
+    if (!deck) return false;
+    const current = deck.slides[slideIndex];
+    if (!current) return false;
+
+    const p = JSON.parse(raw) as Op;
+    const becomesDiagram =
+      typeof p.layout === "string" &&
+      ["mecanismo", "fluxo", "cards"].includes(p.layout) &&
+      Array.isArray(p.nos) &&
+      p.nos.length > 0;
+
+    const candidate = sanitizeSlide({
+      layout: p.layout ?? current.layout,
+      title: p.titulo?.trim() || current.title,
+      subtitle: p.subtitulo?.trim() ?? current.subtitle,
+      // A slide that became a diagram must lose its bullets, or it renders both.
+      bullets: becomesDiagram ? undefined : (p.topicos ?? current.bullets),
+      hub: p.hub?.trim() ?? current.hub,
+      nodes: p.nos?.length ? p.nos : current.nodes,
+      outcome: p.outcome?.trim() ?? current.outcome,
+      stat: current.stat,
+      left: current.left,
+      right: current.right,
+      notes: p.notas?.trim() || current.notes,
+    });
+    if (!candidate) return false;
+
+    const slides = [...deck.slides];
+    slides[slideIndex] = {
+      ...candidate,
+      source: current.source,
+      citationQuery: current.citationQuery,
+      refs: current.refs,
+      imageQuery: current.imageQuery,
+      imageCredit: current.imageCredit,
+      imageStorageId: current.imageStorageId,
+    };
+    await ctx.db.patch(deckId, { slides });
+    return true;
+  },
+  returns: v.boolean(),
+});

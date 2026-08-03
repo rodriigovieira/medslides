@@ -33,6 +33,7 @@ export function Editable({
   multiline = false,
   as: Tag = "span",
   placeholder,
+  onFocus,
 }: {
   value: string;
   onCommit: (next: string) => void;
@@ -42,6 +43,7 @@ export function Editable({
   multiline?: boolean;
   as?: "span" | "div";
   placeholder?: string;
+  onFocus?: () => void;
 }) {
   const ref = useRef<HTMLElement | null>(null);
   const [frozen, setFrozen] = useState<string | null>(null);
@@ -79,7 +81,10 @@ export function Editable({
       className={`cursor-text rounded-[0.3em] outline-none transition focus:bg-clinical/[0.07] focus:ring-2 focus:ring-clinical/30 hover:bg-clinical/[0.05] ${className}`}
       style={style}
       dangerouslySetInnerHTML={{ __html: escapeHtml(shown) }}
-      onFocus={() => setFrozen(value)}
+      onFocus={() => {
+        setFrozen(value);
+        onFocus?.();
+      }}
       onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === "Enter" && !multiline) {

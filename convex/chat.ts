@@ -190,3 +190,109 @@ export const send = action({
     return reply;
   },
 });
+
+/** Schema for editing exactly one slide. Narrower than the deck-wide ops. */
+const ONE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    resposta: { type: "STRING" },
+    layout: {
+      type: "STRING",
+      enum: [
+        "topicos",
+        "destaque",
+        "comparacao",
+        "encerramento",
+        "mecanismo",
+        "fluxo",
+        "cards",
+      ],
+    },
+    titulo: { type: "STRING" },
+    subtitulo: { type: "STRING" },
+    topicos: { type: "ARRAY", items: { type: "STRING" } },
+    hub: { type: "STRING" },
+    outcome: { type: "STRING" },
+    nos: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: { heading: { type: "STRING" }, body: { type: "STRING" } },
+        required: ["heading"],
+      },
+    },
+    notas: { type: "STRING" },
+  },
+  required: ["resposta"],
+  propertyOrdering: [
+    "resposta",
+    "layout",
+    "titulo",
+    "subtitulo",
+    "topicos",
+    "hub",
+    "nos",
+    "outcome",
+    "notas",
+  ],
+} as const;
+
+const ONE_SYSTEM = `Você reescreve **um único slide** de uma apresentação médica.
+
+Devolva \`resposta\` (uma frase curta em português dizendo o que mudou) e só os
+campos que mudam. Campo omitido = campo preservado.
+
+- Mantenha o padrão: título que afirma, no máximo 4 tópicos de até 10 palavras.
+- Só mude \`layout\` se o pedido for de virar diagrama. Aí escolha:
+  \`mecanismo\` (um conceito central que abre em vias e converge num desfecho —
+  informe \`hub\`, \`nos\` e \`outcome\`), \`fluxo\` (etapas em ordem — \`nos\`) ou
+  \`cards\` (blocos paralelos sem ordem — \`nos\`). Ao virar diagrama, devolva
+  \`nos\` e **não** devolva \`topicos\`.
+- Nunca escreva referência, autor, ano ou DOI.
+- Se o pedido não fizer sentido para este slide, não invente: devolva só
+  \`resposta\` explicando.`;
+
+/** Slide-scoped edit, used by the popover anchored to the slide. */
+export const editOne = action({
+  args: {
+    deckId: v.id("decks"),
+    clientId: v.string(),
+    slideIndex: v.number(),
+    instruction: v.string(),
+  },
+  handler: async (
+    ctx,
+    { deckId, clientId, slideIndex, instruction },
+  ): Promise<string> => {
+    const text = instruction.trim();
+    if (text.length < 2) throw new Error("Diga o que mudar neste slide.");
+    if (text.length > 400) throw new Error("Pedido longo demais.");
+
+    const deck = await ctx.runQuery(internal.decks.loadForEdit, {
+      deckId,
+      clientId,
+    });
+    const slide = (deck.slides as Slide[])[slideIndex];
+    if (!slide) throw new Error("Slide inexistente.");
+
+    const result = (await generateStructured(
+      ONE_SYSTEM,
+      `Slide atual (#${slideIndex + 1}):\n\n${describeDeck([slide])}\n\nPedido: ${text}`,
+      ONE_SCHEMA,
+    )) as Record<string, unknown>;
+
+    const reply =
+      typeof result.resposta === "string" && result.resposta.trim()
+        ? result.resposta.trim()
+        : "Pronto.";
+
+    const { resposta: _ignored, ...patch } = result;
+    const changed = await ctx.runMutation(internal.chatOps.applySlidePatch, {
+      deckId,
+      slideIndex,
+      patch: JSON.stringify(patch),
+    });
+
+    return changed ? reply : `${reply} (nada mudou)`;
+  },
+});
