@@ -115,9 +115,11 @@ sistemas executam.
   \`emergency room team\`, \`medication vials\`. Ruim: \`sepsis pathophysiology\`
   (não é fotografável), \`foto realista de...\` (é prompt, e não está em inglês).
   A foto é **ambiente**, nunca informação: nunca busque achado clínico, exame de
-  imagem, lesão, ferida ou peça anatômica. Preencha sempre em \`capa\`, \`secao\`
-  e \`destaque\`, e na maioria dos \`topicos\`. Deixe vazio em \`comparacao\` e nos
-  diagramas — esses já têm peso visual próprio.
+  imagem, lesão, ferida ou peça anatômica. **Qualquer layout aceita foto** —
+  inclusive \`comparacao\` e os diagramas, que a exibem no fundo. Ao criar um
+  slide, preencha sempre em \`capa\`, \`secao\` e \`destaque\`, e na maioria dos
+  \`topicos\`; nos diagramas, só quando pedirem. Quando pedirem imagem para um
+  slide, **nunca recuse por causa do layout**.
 
 Regras:
 - No máximo **6 slides novos** por pedido. Se pedirem mais, faça 6 e diga na
