@@ -30,26 +30,52 @@ apresentação nascer sem expor chave nenhuma no front.
 
 ### Provedores
 
-| Papel | Serviço | Modelo |
+| Papel | Serviço | Modelo / fonte |
 |---|---|---|
 | Texto (primário) | Gemini | `gemini-2.5-flash`, com `responseSchema` |
 | Texto (fallback) | OpenAI | `gpt-4.1`, JSON mode |
-| Imagens | fal.ai | `flux/schnell`, 16:9 |
+| Imagens | Openverse → StockSnap | fotografia CC0, sem chave e sem custo |
 
 O fallback dispara em 429 e 5xx — mesma regra do backend do Panda
 (`getRetryableProviderStatus`). Erros 4xx nossos não caem para o outro provedor.
 
 ### Imagens
 
-Capa e slides de seção ganham uma imagem de fundo (máx. 3 por deck, para o custo
-não escalar). O modelo escreve o `imagePrompt` em inglês; a imagem é **atmosfera,
-nunca informação**.
+Fotografia de banco, **não** geração por IA — foi uma escolha explícita para não
+criar custo por imagem. Vem do Openverse (sem chave de API) filtrado a
+`source=stocksnap`, cujo catálogo é CC0.
 
-Isso é material médico, então há duas barreiras contra imagem que pareça achado
-clínico: a instrução no system prompt e um filtro em código
-(`convex/lib/images.ts`). O filtro cobre raio-X, TC, RM, histologia, lesão,
-biópsia e afins — e ignora negações, senão o próprio "no lesions" do prompt
-bloquearia o prompt.
+Duas restrições deliberadas em `convex/lib/stock.ts`:
+
+- **Só StockSnap.** O Openverse também agrega o rawpixel, que devolve clipart
+  vetorial — exatamente o visual que o redesenho combate.
+- **Cache obrigatório.** O limite anônimo é 20/min e 200/dia, abaixo do nosso
+  teto de decks, então nenhuma busca pode acontecer por slide. Toda busca passa
+  pela tabela `imageCache` (TTL de 14 dias) em `convex/images.ts`.
+
+O modelo escreve `imageQuery` — 2 a 4 palavras em inglês, uma **busca**, não um
+prompt. A foto é ambiente, nunca informação: um filtro em código barra achado
+clínico (raio-X, TC, histologia, lesão) e ignora negações, senão o próprio
+"no lesions" do texto bloquearia a busca.
+
+CC0 não exige atribuição, então o crédito fica nas notas do apresentador em vez
+de sujar o slide.
+
+### Tratamento visual
+
+A foto tem três usos, e não um fundo único — foi o fundo único que deixava tudo
+achatado:
+
+| Layout | Tratamento |
+|---|---|
+| `capa` | sangria total, gradiente de baixo, título ancorado embaixo |
+| `secao`, `destaque` | sangria total, gradiente lateral |
+| `topicos`, `encerramento` | painel de foto à direita, texto à esquerda |
+| `comparacao` | sem foto — já são duas colunas de texto |
+
+`slidesNeedingImages` distribui as imagens ao longo do deck em vez de gastá-las
+todas no começo: capa, seções e destaques sempre têm foto, e o resto do
+orçamento é espalhado entre os slides de conteúdo.
 
 ## Rodando localmente
 

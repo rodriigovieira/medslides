@@ -136,7 +136,7 @@ export async function exportPptx(deck: Deck) {
         line: { type: "none" },
       });
       s.addText(`${index + 1} / ${deck.slides.length}`, {
-        x: W - MARGIN - 1.2,
+        x: (treatment === "panel" ? W * 0.53 : W - MARGIN) - 1.2,
         y: H - 0.52,
         w: 1.2,
         h: 0.3,

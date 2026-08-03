@@ -74,7 +74,13 @@ export function SlideView({
         />
       )}
 
-      <Footer slide={slide} index={index} total={total} dark={dark} />
+      <Footer
+        slide={slide}
+        index={index}
+        total={total}
+        dark={dark}
+        treatment={treatment}
+      />
     </div>
   );
 }
@@ -100,13 +106,18 @@ function Footer({
   index,
   total,
   dark,
+  treatment,
 }: {
   slide: Slide;
   index: number;
   total: number;
   dark: boolean;
+  treatment: "full" | "panel" | "none";
 }) {
   const faint = dark ? "text-paper/55" : "text-ink-faint";
+  // With a photo panel on the right, the page number has to stay in the text
+  // column — over the photo it's unreadable.
+  const numberRight = treatment === "panel" ? "right-[44cqw]" : "right-[7cqw]";
   return (
     <>
       {slide.source && (
@@ -118,7 +129,7 @@ function Footer({
       )}
       {slide.layout !== "capa" && (
         <div
-          className={`absolute bottom-[3.2cqw] right-[7cqw] text-[1.45cqw] tabular-nums ${faint}`}
+          className={`absolute bottom-[3.2cqw] ${numberRight} text-[1.45cqw] tabular-nums ${faint}`}
         >
           {index + 1} / {total}
         </div>
