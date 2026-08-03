@@ -2,18 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>O MedSlides usa o microfone para você ditar o tema da apresentação em vez de digitar.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>A transcrição acontece no próprio aparelho. O áudio não é enviado para nenhum servidor.</string>
-	<key>CFBundleDisplayName</key>
-	<string>MedSlides</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Medslides Mobile</string>
+	<string>MedSlides</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -32,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>O MedSlides usa o microfone para você ditar o tema da apresentação em vez de digitar.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>A transcrição acontece no próprio aparelho. O áudio não é enviado para nenhum servidor.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

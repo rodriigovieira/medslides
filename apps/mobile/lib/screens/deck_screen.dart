@@ -238,9 +238,16 @@ class _Actions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Row(
+    // Two rows, not three buttons across one. On an iPhone 16 Pro the three-up
+    // row left 147pt per button and "Editar com IA" needs about 170pt with its
+    // ✦ and the M3 padding, so the label wrapped to two lines and the button
+    // grew a second row of text inside itself. Narrower phones only make that
+    // worse, and shortening the label to fit would cost the one word that says
+    // what the button does.
+    return Column(
       children: [
-        Expanded(
+        SizedBox(
+          width: double.infinity,
           child: FilledButton.icon(
             onPressed: deck.slides.isEmpty
                 ? null
@@ -253,32 +260,37 @@ class _Actions extends ConsumerWidget {
             label: const Text('Apresentar'),
           ),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: deck.isWorking
-                ? null
-                : () => ChatSheet.show(context, deckId: deck.id),
-            icon: const Text('✦', style: TextStyle(fontSize: 15)),
-            label: const Text('Editar com IA'),
-          ),
-        ),
-        const SizedBox(width: 10),
-        // The .pptx is built in the browser — pptxgenjs plus a canvas pass that
-        // flattens each photo and its scrim into one image. Rebuilding that in
-        // Dart would be a second exporter to keep in step with the first, and
-        // the first is the one that has already been through the iOS/WhatsApp
-        // transparency trap. So the phone hands off to the page that owns it.
-        SizedBox(
-          width: MedSpace.tapTarget,
-          child: OutlinedButton(
-            onPressed: () => launchUrl(
-              Uri.parse(DeckScreen.webUrl(deck.id)),
-              mode: LaunchMode.externalApplication,
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: deck.isWorking
+                    ? null
+                    : () => ChatSheet.show(context, deckId: deck.id),
+                icon: const Text('✦', style: TextStyle(fontSize: 15)),
+                label: const Text('Editar com IA'),
+              ),
             ),
-            style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
-            child: const Icon(Icons.download, size: 20),
-          ),
+            const SizedBox(width: 10),
+            // The .pptx is built in the browser — pptxgenjs plus a canvas pass
+            // that flattens each photo and its scrim into one image. Rebuilding
+            // that in Dart would be a second exporter to keep in step with the
+            // first, and the first is the one that has already been through the
+            // iOS/WhatsApp transparency trap. So the phone hands off to the
+            // page that owns it.
+            SizedBox(
+              width: MedSpace.tapTarget,
+              child: OutlinedButton(
+                onPressed: () => launchUrl(
+                  Uri.parse(DeckScreen.webUrl(deck.id)),
+                  mode: LaunchMode.externalApplication,
+                ),
+                style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
+                child: const Icon(Icons.download, size: 20),
+              ),
+            ),
+          ],
         ),
       ],
     );
