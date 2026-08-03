@@ -1,0 +1,8 @@
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
+#include "Generated.xcconfig"
+#include? "Signing.xcconfig"
+
+// Placeholders. The real values live in the gitignored
+// Signing.xcconfig next to this file — see ios/Flutter/Signing.example.xcconfig.
+MEDSLIDES_TEAM_ID = 
+MEDSLIDES_BUNDLE_ID = com.medslides.app

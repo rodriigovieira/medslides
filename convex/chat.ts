@@ -5,6 +5,7 @@ import { internal } from "./_generated/api";
 import { action } from "./_generated/server";
 import { type Slide } from "../src/lib/deck";
 import { TruncatedJsonError, generateStructured } from "./lib/ai";
+import { refuseImagePrompt } from "./lib/imagen";
 import { completeObjectsIn } from "../src/lib/partial";
 
 /**
@@ -146,8 +147,10 @@ Operações:
     with small payload spheres attached to its arms by short linkers\`.
     Descreva **a forma**, não rótulos. A paleta é aplicada automaticamente.
   Nunca peça texto, rótulo, logotipo ou gráfico com números — o modelo desenha
-  letra falsa. Nunca peça exame, lesão, peça anatômica nem estrutura química:
-  uma fórmula inventada parece tão convincente quanto a certa.
+  letra falsa. Nunca peça exame de imagem, lâmina, microscopia nem estrutura
+  química, em nenhum estilo: inventadas, essas imagens são lidas como dado.
+  **Célula tumoral, receptor, órgão e lesão podem ser desenhados como esquema**
+  — é o vocabulário normal de um congresso — mas nunca como \`foto\`.
 
 \`citationQuery\` e \`imageQuery\` não vão para a tela: são buscas que outros
 sistemas executam.
@@ -294,6 +297,20 @@ export const send = action({
 
       // Illustration onto a diagram: dropped before it is paid for, and said
       // out loud, rather than applied into a slide it cannot fit.
+      // An unsafe prompt is dropped before the budget is touched, and the
+      // reason replaces the cheerful "gerando…" rather than arriving after it.
+      const refusals: string[] = [];
+      for (const op of ops) {
+        const prompt = op.imagePrompt?.trim();
+        if (!prompt) continue;
+        const style = op.estilo === "ilustracao" ? "ilustracao" : "foto";
+        const refusal = refuseImagePrompt(prompt, style);
+        if (refusal) {
+          delete op.imagePrompt;
+          if (!refusals.includes(refusal)) refusals.push(refusal);
+        }
+      }
+
       let refused = false;
       for (const op of ops) {
         if (op.estilo !== "ilustracao" || !op.imagePrompt?.trim()) continue;
@@ -311,6 +328,7 @@ export const send = action({
         }
       }
       if (refused) reply = `${reply} ${DIAGRAM_ART_REFUSAL}`;
+      if (refusals.length > 0) reply = `${reply} ${refusals.join(' ')}`;
 
       if (ops.length > 0) {
         const result = await ctx.runMutation(internal.chatOps.applyOps, {
@@ -597,6 +615,14 @@ export const editOne = action({
     const aiStyle = patch.estilo === "ilustracao" ? "ilustracao" : "foto";
     if (aiPrompt && aiStyle === "ilustracao" && !illustrationFits(slide.layout)) {
       return DIAGRAM_ART_REFUSAL;
+    }
+    // Refuse here, not inside the scheduled job. The check is pure and
+    // instant, so there is no reason to reserve budget, promise "gerando a
+    // imagem…", and then contradict that promise from a different panel a few
+    // seconds later — which is exactly what happened in production.
+    if (aiPrompt) {
+      const refusal = refuseImagePrompt(aiPrompt, aiStyle);
+      if (refusal) return refusal;
     }
     if (aiPrompt) {
       // Reserve before generating, and let the failure surface here rather than

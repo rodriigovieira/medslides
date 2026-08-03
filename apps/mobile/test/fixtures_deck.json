@@ -1,0 +1,268 @@
+{
+  "_creationTime": 1785742093713.2002,
+  "_id": "j571cpyjnz12by1r36c72e818n8bs5dd",
+  "audience": "Residentes e internos",
+  "chat": [
+    {
+      "at": 1785742123045,
+      "role": "user",
+      "text": "Quais slides são diagramas ou comparação? Coloque uma imagem em todos eles."
+    },
+    {
+      "at": 1785742125095,
+      "role": "assistant",
+      "text": "Não é possível adicionar imagens em slides de diagrama ou comparação, pois eles já possuem um forte apelo visual por design."
+    }
+  ],
+  "clientId": "3173aa3e-9dda-47f0-bd65-412bbbbc9578",
+  "createdAt": 1785742093713,
+  "depth": "aprofundado",
+  "model": "gemini-2.5-flash",
+  "phase": "pronto",
+  "provider": "gemini",
+  "references": [
+    {
+      "authors": "Litchfield K, et al",
+      "journal": "Cell",
+      "n": 1,
+      "pmid": "33508232",
+      "title": "Meta-analysis of tumor- and T cell-intrinsic mechanisms of sensitization to checkpoint inhibition",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/33508232/",
+      "year": "2021"
+    },
+    {
+      "authors": "Jin M, et al",
+      "journal": "Mol Cancer",
+      "n": 2,
+      "pmid": "39614285",
+      "title": "PD-1/PD-L1 immune checkpoint blockade in breast cancer: research insights and sensitization strategies",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/39614285/",
+      "year": "2024"
+    },
+    {
+      "authors": "Zhang Z, et al",
+      "journal": "Front Immunol",
+      "n": 3,
+      "pmid": "40463367",
+      "title": "Efficacy of neoadjuvant, adjuvant, and perioperative immunotherapy in non-small cell lung cancer across different PD-L1 expression levels: a systematic review and meta-analysis",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/40463367/",
+      "year": "2025"
+    },
+    {
+      "authors": "Petrelli F, et al",
+      "journal": "Clin Lung Cancer",
+      "n": 4,
+      "pmid": "29530732",
+      "title": "Clinical and Molecular Predictors of PD-L1 Expression in Non-Small-Cell Lung Cancer: Systematic Review and Meta-analysis",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/29530732/",
+      "year": "2018"
+    },
+    {
+      "authors": "Owens C, et al",
+      "journal": "Br J Radiol",
+      "n": 5,
+      "pmid": "37097296",
+      "title": "The lung cancers: staging and response, CT, (18)F-FDG PET/CT, MRI, DWI: review and new perspectives",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/37097296/",
+      "year": "2023"
+    },
+    {
+      "authors": "Yin X, et al",
+      "journal": "Semin Cancer Biol",
+      "n": 6,
+      "pmid": "35963564",
+      "title": "Artificial intelligence-based prediction of clinical outcome in immunotherapy and targeted therapy of lung cancer",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/35963564/",
+      "year": "2022"
+    },
+    {
+      "authors": "Di Federico A, et al",
+      "journal": "Lancet Oncol",
+      "n": 7,
+      "pmid": "41038207",
+      "title": "Long-term overall survival with dual CTLA-4 and PD-L1 or PD-1 blockade and biomarker-based subgroup analyses in patients with advanced non-small-cell lung cancer: a systematic review and reconstructed individual patient data meta-analysis",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/41038207/",
+      "year": "2025"
+    },
+    {
+      "authors": "Zhu J, et al",
+      "journal": "Cochrane Database Syst Rev",
+      "n": 8,
+      "pmid": "34870327",
+      "title": "Immunotherapy (excluding checkpoint inhibitors) for stage I to III non-small cell lung cancer treated with surgery or radiotherapy with curative intent",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/34870327/",
+      "year": "2021"
+    },
+    {
+      "authors": "Sun D, et al",
+      "journal": "Technol Cancer Res Treat",
+      "n": 9,
+      "pmid": "36148917",
+      "title": "Optimal Treatments for NSCLC Patients Harboring Primary or Acquired MET Amplification",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/36148917/",
+      "year": "2022"
+    },
+    {
+      "authors": "Popat S, et al",
+      "journal": "Future Oncol",
+      "n": 10,
+      "pmid": "28326832",
+      "title": "Nintedanib plus docetaxel as second-line therapy in patients with non-small-cell lung cancer of adenocarcinoma histology: a network meta-analysis vs new therapeutic options",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/28326832/",
+      "year": "2017"
+    }
+  ],
+  "slideCount": 8,
+  "slides": [
+    {
+      "imageCredit": "Foto: StockSnap · Oles kanebckuu (CC0)",
+      "imageQuery": "oncology team discussion",
+      "imageSource": "https://cdn.stocksnap.io/img-thumbs/960w/5YUFL6LC0E.jpg",
+      "imageUrl": "https://ardent-wolf-30.convex.cloud/api/storage/4e430527-4b17-45b2-b701-c63ccefa882b",
+      "layout": "capa",
+      "notes": "Olá a todos! Sejam bem-vindos a esta apresentação sobre imunoterapia no câncer de pulmão. Nos últimos anos, esta modalidade terapêutica revolucionou o manejo dos pacientes, e é crucial para residentes e internos entenderem seus fundamentos e aplicações práticas. Vamos abordar as bases, os critérios de seleção e as principais estratégias de tratamento.",
+      "subtitle": "Novidades e Aplicações Clínicas",
+      "title": "Imunoterapia no Câncer de Pulmão"
+    },
+    {
+      "imageCredit": "Foto: StockSnap · Direct Media (CC0)",
+      "imageQuery": "immune cell science",
+      "imageSource": "https://cdn.stocksnap.io/img-thumbs/960w/7LH1WLQAA6.jpg",
+      "imageUrl": "https://ardent-wolf-30.convex.cloud/api/storage/c1a572a7-cfae-4454-8660-35fe50b75fd6",
+      "layout": "secao",
+      "notes": "Antes de mergulharmos nas novidades, é essencial revisar como nosso sistema imune interage com as células tumorais. O câncer desenvolve mecanismos para escapar da vigilância imunológica, e a imunoterapia visa reverter essa supressão, permitindo que o próprio corpo combata a doença. Entender esses mecanismos é chave para aplicar corretamente a terapia.",
+      "title": "Fundamentos: Como a Imunoterapia Atua no Câncer"
+    },
+    {
+      "citationQuery": "immune checkpoint inhibitors mechanism cancer",
+      "hub": "Bloqueio de Checkpoint Imunológico",
+      "layout": "mecanismo",
+      "nodes": [
+        {
+          "body": "Evita exaustão de linfócitos T no microambiente tumoral",
+          "heading": "PD-1/PD-L1"
+        },
+        {
+          "body": "Impede inativação de linfócitos T na fase de iniciação",
+          "heading": "CTLA-4"
+        }
+      ],
+      "notes": "Os inibidores de checkpoint imunológico são a espinha dorsal da imunoterapia. Eles agem bloqueando proteínas que as células tumorais usam para 'desligar' a resposta imune. As duas vias mais estudadas são PD-1/PD-L1, que atua na fase efetora da resposta, e CTLA-4, que modula a ativação inicial dos linfócitos T, resultando na reativação da imunidade antitumoral.",
+      "outcome": "Ativação de Linfócitos T e Resposta Antitumoral",
+      "refs": [
+        1,
+        2
+      ],
+      "title": "Inibidores de Checkpoint: Restaurando a Imunidade Antitumoral"
+    },
+    {
+      "bullets": [
+        "Expressão de PD-L1 (TPS): Principal preditor de resposta",
+        "Carga Mutacional Tumoral (TMB): Potencial para alta neoantigenicidade",
+        "Instabilidade Microssatélite (MSI): Rara, mas com resposta robusta",
+        "Outros: co-mutações, perfil de citocinas (em pesquisa)"
+      ],
+      "citationQuery": "PD-L1 expression lung cancer immunotherapy biomarker",
+      "imageCredit": "Foto: StockSnap · Direct Media (CC0)",
+      "imageQuery": "laboratory microscope slide",
+      "imageSource": "https://cdn.stocksnap.io/img-thumbs/960w/KJZZ3VQWN9.jpg",
+      "imageUrl": "https://ardent-wolf-30.convex.cloud/api/storage/1a52dc4e-e1a3-4f59-a3e1-8f103710bebc",
+      "layout": "topicos",
+      "notes": "A escolha da imunoterapia é guiada por biomarcadores, sendo a expressão de PD-L1 a mais relevante no câncer de pulmão. A porcentagem de células tumorais com expressão de PD-L1 (TPS) influencia diretamente a decisão terapêutica. Outros biomarcadores, como TMB e MSI, também são importantes em subgrupos específicos, indicando um câncer com maior capacidade de ser reconhecido pelo sistema imune.",
+      "refs": [
+        3,
+        4
+      ],
+      "title": "Biomarcadores Essenciais para Seleção Terapêutica"
+    },
+    {
+      "citationQuery": "advanced NSCLC immunotherapy treatment algorithm",
+      "layout": "fluxo",
+      "nodes": [
+        {
+          "body": "Confirmação histopatológica, exames de imagem e molecular",
+          "heading": "Diagnóstico e Estadiamento"
+        },
+        {
+          "body": "Teste de PD-L1 e mutações driver (EGFR, ALK, ROS1)",
+          "heading": "Avaliação de Biomarcadores"
+        },
+        {
+          "body": "Monoterapia, quimio-imunoterapia ou dupla imunoterapia",
+          "heading": "Escolha da Terapia"
+        },
+        {
+          "body": "Avaliação de resposta e eventos adversos imuno-relacionados (irAEs)",
+          "heading": "Monitoramento e Manejo de RA"
+        }
+      ],
+      "notes": "O tratamento do CPNPC avançado com imunoterapia segue um algoritmo claro. Após o diagnóstico e estadiamento, a avaliação dos biomarcadores é crucial. Pacientes com mutações driver geralmente recebem terapia-alvo. Para os demais, a escolha entre monoterapia, quimio-imunoterapia ou dupla imunoterapia depende do nível de expressão de PD-L1. O monitoramento contínuo e o manejo adequado dos eventos adversos imuno-relacionados são fundamentais para o sucesso do tratamento e a segurança do paciente.",
+      "refs": [
+        5,
+        6
+      ],
+      "title": "Abordagem da Imunoterapia em CPNPC Avançado"
+    },
+    {
+      "citationQuery": "immunotherapy NSCLC 5-year survival benefit",
+      "imageCredit": "Foto: StockSnap · Direct Media (CC0)",
+      "imageQuery": "positive patient outcome",
+      "imageSource": "https://cdn.stocksnap.io/img-thumbs/960w/SSDEQHS17S.jpg",
+      "imageUrl": "https://ardent-wolf-30.convex.cloud/api/storage/e54e116d-687f-44de-93f2-1d053a3974f5",
+      "layout": "destaque",
+      "notes": "A introdução da imunoterapia transformou os desfechos em câncer de pulmão não pequenas células. Antes, a sobrevida em 5 anos para doença avançada era mínima. Com a imunoterapia, vemos uma proporção significativa de pacientes atingindo e ultrapassando essa marca, com curvas de sobrevida que demonstram um platô, sugerindo respostas duradouras. Este é um avanço sem precedentes na oncologia.",
+      "refs": [
+        7,
+        8
+      ],
+      "stat": {
+        "label": "Aumento da sobrevida em 5 anos para alguns pacientes (vs. quimioterapia)",
+        "value": "> 2x"
+      },
+      "title": "Imunoterapia Melhorou Sobrevida Global em CPNPC"
+    },
+    {
+      "citationQuery": "PD-L1 high vs low NSCLC immunotherapy regimen",
+      "layout": "comparacao",
+      "left": {
+        "bullets": [
+          "PD-L1 >= 50% (forte expressão)",
+          "Menor toxicidade inicial",
+          "Benefício duradouro em respondedores",
+          "Exemplos: Pembrolizumabe"
+        ],
+        "heading": "Imuno Monoterapia"
+      },
+      "notes": "A escolha entre monoterapia e quimio-imunoterapia depende principalmente do nível de expressão de PD-L1 e do status mutacional. Pacientes com alta expressão de PD-L1 podem se beneficiar de monoterapia, evitando a toxicidade inicial da quimioterapia. Já para aqueles com baixa expressão ou sem expressão de PD-L1, a combinação com quimioterapia mostrou melhores resultados, amplificando a resposta imune. É uma decisão individualizada baseada em evidências.",
+      "refs": [
+        9,
+        10
+      ],
+      "right": {
+        "bullets": [
+          "PD-L1 < 50% ou indeterminado",
+          "Maior taxa de resposta inicial",
+          "Benefício mais amplo na população",
+          "Exemplos: Carboplatina/Pemetrexed + Pembrolizumabe"
+        ],
+        "heading": "Quimio-Imunoterapia"
+      },
+      "title": "Monoterapia vs. Quimio-Imunoterapia em CPNPC"
+    },
+    {
+      "bullets": [
+        "Imunoterapia transformou o tratamento do CPNPC.",
+        "Biomarcadores guiam a seleção terapêutica.",
+        "Manejo de irAEs é crucial para o sucesso.",
+        "Pesquisa contínua expande indicações e combinações."
+      ],
+      "layout": "encerramento",
+      "notes": "Para finalizar, reforcemos os pontos mais importantes. A imunoterapia é um pilar no tratamento do câncer de pulmão, com impacto significativo na sobrevida. A avaliação de biomarcadores é indispensável para a tomada de decisão. O manejo dos eventos adversos imuno-relacionados é uma habilidade que todo médico precisa desenvolver. E lembrem-se que a pesquisa nesta área é muito dinâmica, com novas terapias e combinações surgindo constantemente.",
+      "title": "Mensagens Chave"
+    }
+  ],
+  "status": "pronto",
+  "subtitle": "Novidades e Aplicações Clínicas para Residentes e Internos",
+  "title": "Imunoterapia no Câncer de Pulmão",
+  "topic": "Imunoterapia no cancer de pulmao: novidades"
+}

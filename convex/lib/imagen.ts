@@ -59,26 +59,53 @@ const DIRECTION: Record<ImageStyle, string> = {
 };
 
 /**
- * Nothing that could be mistaken for evidence from a real patient.
+ * What must never be generated, in any register.
  *
- * The stock filter blocks the same subjects, but blocking them there only meant
- * a search returned nothing. Here the model would *comply*: ask it for a chest
- * X-ray with a nodule and it produces a convincing one, with a lesion that no
- * patient has and no radiologist reported. On a slide, next to a verified PubMed
- * citation, that is fabricated clinical evidence. Portuguese included, because
- * this prompt is written by a Brazilian doctor, not by our English prompt layer.
+ * These are *measurements*. Ask the model for a chest X-ray with a nodule and it
+ * produces a convincing one, showing a finding no patient has and no
+ * radiologist reported; ask it for deruxtecan's structural formula and it draws
+ * a molecule that is wrong in a way nobody in the room will check bond by bond.
+ * Next to a verified PubMed citation, either is fabricated evidence.
  */
-const FORBIDDEN =
-  /\b(x-?rays?|radiograf\w*|raios?-?x|radiographs?|ct scans?|tomografias?|mri|resson[âa]nci\w*|ultrassom|ultrassonografi\w*|ultrasounds?|ecocardiogram\w*|echocardiograms?|ecgs?|ekgs?|eletrocardiogram\w*|histolog\w*|bi[óo]psi\w*|biops\w+|pathology slides?|l[âa]minas?|microscop\w*|lesions?|les[õo]es|les[ãa]o|wounds?|feridas?|rashes|erup[çc][õo]es|tumou?rs?|tumor\w*|autops\w+|aut[óo]psi\w*|cadavers?|cad[áa]ver\w*|dissection|dissec[çc][ãa]o|surgical site|blood smear|esfrega[çc]o|chemical structures?|structural formulas?|molecular structures?|estruturas? qu[íi]mica\w*|f[óo]rmulas? estrutural\w*|estruturas? molecular\w*|smiles)\b/i;
+const NEVER =
+  /\b(x-?rays?|radiograf\w*|raios?-?x|radiographs?|ct scans?|tomografias?|mri|resson[âa]nci\w*|ultrassom|ultrassonografi\w*|ultrasounds?|ecocardiogram\w*|echocardiograms?|ecgs?|ekgs?|eletrocardiogram\w*|histolog\w*|bi[óo]psi\w*|biops\w+|pathology slides?|l[âa]minas?|microscop\w*|autops\w+|aut[óo]psi\w*|cadavers?|cad[áa]ver\w*|dissection|dissec[çc][ãa]o|surgical site|blood smear|esfrega[çc]o|chemical structures?|structural formulas?|molecular structures?|estruturas? qu[íi]mica\w*|f[óo]rmulas? estrutural\w*|estruturas? molecular\w*|smiles)\b/i;
 
-export function isSafeImagePrompt(prompt: string): boolean {
+/**
+ * Subjects that are fine as a diagram and dangerous as a photograph.
+ *
+ * A stylised tumour cell with PD-L1 on its surface is the standard vocabulary of
+ * every immuno-oncology talk ever given — it is a diagram of a concept, and
+ * nobody mistakes it for a patient. A photorealistic one is a picture of
+ * somebody's disease.
+ *
+ * This distinction exists because the flat list got it wrong in production: a
+ * doctor asked for a mechanism-of-action schematic for immunotherapy, the model
+ * wrote a perfectly good prompt containing the word "tumour", and the request
+ * was refused. The blocked case was the exact case the illustration style was
+ * built for.
+ */
+const PHOTO_ONLY =
+  /\b(lesions?|les[õo]es|les[ãa]o|wounds?|feridas?|rashes|erup[çc][õo]es|tumou?rs?|tumor\w*)\b/i;
+
+/** The reason a prompt was refused, or null when it is fine. */
+export function refuseImagePrompt(
+  prompt: string,
+  style: ImageStyle,
+): string | null {
   // Negations stripped first, so "an empty ward, no wounds" isn't blocked by
   // its own safety wording.
   const text = prompt.replace(
     /\b(?:no|without|free of|sem|nenhum[ao]?)\s+[\w-]+/gi,
     " ",
   );
-  return !FORBIDDEN.test(text);
+
+  if (NEVER.test(text)) {
+    return "Não gero exame de imagem, lâmina, peça anatômica nem estrutura química: inventadas, essas imagens são lidas como dado — uma fórmula estrutural errada parece tão convincente quanto a certa. Descreva o ambiente, a cena, ou um esquema (anticorpo, célula, receptor, órgão).";
+  }
+  if (style === "foto" && PHOTO_ONLY.test(text)) {
+    return "Não gero *foto* de lesão, ferida ou tumor — uma foto dessas ao lado de uma citação real é lida como o caso de um paciente. Como esquema científico funciona: peça \"gere um esquema\" em vez de uma foto.";
+  }
+  return null;
 }
 
 export async function generateSlideImage(
@@ -91,11 +118,10 @@ export async function generateSlideImage(
 
   const text = prompt.trim();
   if (text.length < 4) throw new ImageError("Descreva a imagem que você quer.");
-  if (!isSafeImagePrompt(text)) {
-    throw new ImageError(
-      "Não gero exame, lesão, peça anatômica nem estrutura química: inventadas, essas imagens são lidas como dado — uma fórmula estrutural errada parece tão convincente quanto a certa. Peça o ambiente, a cena ou um esquema (anticorpo, coração, receptor).",
-    );
-  }
+  // Callers check this *before* promising anything and before spending budget;
+  // repeating it here is the backstop for a future caller that forgets.
+  const refusal = refuseImagePrompt(text, style);
+  if (refusal) throw new ImageError(refusal);
 
   const model = IMAGE_MODELS[quality];
   const res = await fetch(

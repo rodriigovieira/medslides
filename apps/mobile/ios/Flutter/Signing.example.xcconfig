@@ -1,0 +1,4 @@
+// Copy to Signing.xcconfig (gitignored) and fill in.
+// MEDSLIDES_TEAM_ID is the 10-character Apple Developer Team ID.
+MEDSLIDES_TEAM_ID = ABCDE12345
+MEDSLIDES_BUNDLE_ID = com.yourorg.medslides
