@@ -236,6 +236,14 @@ export const send = action({
 
       reply = reported?.trim() || "Pronto.";
 
+      // Same repair the slide-scoped editor does: a node that lost its support
+      // line renders lopsided next to its siblings, whichever path built it.
+      for (const op of ops) {
+        if (Array.isArray(op.nos) && op.nos.length > 0) {
+          op.nos = await completeNodeBodies(op.titulo ?? "", op.nos);
+        }
+      }
+
       if (ops.length > 0) {
         const result = await ctx.runMutation(internal.chatOps.applyOps, {
           deckId,
@@ -335,6 +343,9 @@ campos que mudam. Campo omitido = campo preservado.
   informe \`hub\`, \`nos\` e \`outcome\`), \`fluxo\` (etapas em ordem — \`nos\`) ou
   \`cards\` (blocos paralelos sem ordem — \`nos\`). Ao virar diagrama, devolva
   \`nos\` e **não** devolva \`topicos\`.
+  Cada nó tem \`heading\` (2 a 5 palavras) **e** \`body\` (uma linha, até 14
+  palavras). Os dois, em **todos** os nós — um nó sem \`body\` ao lado de outros
+  que têm sai torto no slide.
 - Nunca escreva referência, autor, ano ou DOI.
 - Imagem: para trocar, colocar ou pedir outra foto, devolva \`imageQuery\` com
   2 a 4 palavras **em inglês**, concretas e fotografáveis — é uma busca em banco
@@ -345,6 +356,73 @@ campos que mudam. Campo omitido = campo preservado.
   \`removerImagem: true\`.
 - Se o pedido não fizer sentido para este slide, não invente: devolva só
   \`resposta\` explicando.`;
+
+const BODIES_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    nos: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: { heading: { type: "STRING" }, body: { type: "STRING" } },
+        required: ["heading", "body"],
+      },
+    },
+  },
+  required: ["nos"],
+  propertyOrdering: ["nos"],
+} as const;
+
+type Node = { heading?: string; body?: string };
+
+/**
+ * Fills in the support line of any node that came back without one.
+ *
+ * A conversion returned four cards where three had a body and the first didn't —
+ * the model dropped it mid-generation. The lopsided card is what the user sees,
+ * and there's nothing honest to put there locally: the missing line is clinical
+ * content, so it has to come from the model, not from a placeholder. Only the
+ * gaps are re-asked, and only when some nodes have a body and others don't —
+ * a diagram where *no* node has one is a legitimate shape.
+ */
+async function completeNodeBodies(
+  slideTitle: string,
+  nodes: Node[],
+): Promise<Node[]> {
+  const missing = nodes.filter((n) => n.heading && !n.body?.trim());
+  if (missing.length === 0 || missing.length === nodes.length) return nodes;
+
+  try {
+    const result = (await generateStructured(
+      `Você completa a linha de apoio de itens de um diagrama médico.
+Para cada \`heading\` recebido, devolva um \`body\`: **uma linha, até 14 palavras**,
+em português, no mesmo registro clínico dos outros itens do slide.
+Nunca escreva referência, autor, ano ou DOI. Devolva todos os itens pedidos.`,
+      `Slide: ${slideTitle}\n\nItens já completos:\n${nodes
+        .filter((n) => n.body?.trim())
+        .map((n) => `- ${n.heading}: ${n.body}`)
+        .join("\n")}\n\nCompletar:\n${missing
+        .map((n) => `- ${n.heading}`)
+        .join("\n")}`,
+      BODIES_SCHEMA,
+    )) as { nos?: Node[] };
+
+    const filled = new Map(
+      (result.nos ?? [])
+        .filter((n): n is Required<Node> => Boolean(n.heading && n.body))
+        .map((n) => [n.heading.trim(), n.body.trim()]),
+    );
+    return nodes.map((n) =>
+      n.body?.trim() || !n.heading
+        ? n
+        : { ...n, body: filled.get(n.heading.trim()) },
+    );
+  } catch (error) {
+    // Best-effort: a card with no support line still beats a failed edit.
+    console.warn(`Completar nós falhou: ${String(error)}`);
+    return nodes;
+  }
+}
 
 /** Slide-scoped edit, used by the popover anchored to the slide. */
 export const editOne = action({
@@ -381,6 +459,12 @@ export const editOne = action({
         : "Pronto.";
 
     const { resposta: _ignored, ...patch } = result;
+    if (Array.isArray(patch.nos) && patch.nos.length > 0) {
+      patch.nos = await completeNodeBodies(
+        typeof patch.titulo === "string" ? patch.titulo : slide.title,
+        patch.nos as Node[],
+      );
+    }
     const applied = await ctx.runMutation(internal.chatOps.applySlidePatch, {
       deckId,
       slideIndex,

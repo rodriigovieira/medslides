@@ -103,17 +103,36 @@ const LAYOUTS: SlideLayout[] = [
 /** Diagram layouts are only renderable with nodes; without them they degrade. */
 export const DIAGRAM_LAYOUTS: SlideLayout[] = ["mecanismo", "fluxo", "cards"];
 
+/**
+ * Trims a diagram node's text and drops JSON debris off its ends.
+ *
+ * A conversion once produced the heading `NSCLC PD-L1 ", ` — the model lost the
+ * thread mid-token and spat its own delimiters into the value. The string was
+ * valid JSON, so nothing upstream objected, and the quote-comma rendered on the
+ * slide. Only the ends are touched: punctuation inside a heading is content
+ * ("PD-L1 ≥ 50%"), and stripping that would corrupt good slides to tidy up rare
+ * bad ones.
+ */
+function cleanNodeText(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const text = value
+    .replace(/^[\s"',;:]+/, "")
+    .replace(/[\s"',;:]+$/, "")
+    .replace(/\s+/g, " ");
+  return text || undefined;
+}
+
 function cleanNodes(value: unknown): DiagramNode[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const nodes = value
     .map((item) => {
       if (!item || typeof item !== "object") return null;
       const raw = item as Record<string, unknown>;
-      if (typeof raw.heading !== "string" || raw.heading.trim() === "") {
-        return null;
-      }
-      const node: DiagramNode = { heading: raw.heading };
-      if (typeof raw.body === "string" && raw.body) node.body = raw.body;
+      const heading = cleanNodeText(raw.heading);
+      if (!heading) return null;
+      const node: DiagramNode = { heading };
+      const body = cleanNodeText(raw.body);
+      if (body) node.body = body;
       return node;
     })
     .filter((node): node is DiagramNode => node !== null);
