@@ -189,3 +189,81 @@ export async function generateDeckText(
     return { text, provider: "openai", model: OPENAI_MODEL };
   }
 }
+
+/**
+ * One-shot structured call, for jobs that aren't the deck stream — currently
+ * the chat editor. Same provider order and fallback rule as `generateDeckText`.
+ */
+export async function generateStructured(
+  system: string,
+  user: string,
+  schema: unknown,
+): Promise<unknown> {
+  const gemini = async () => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new ProviderError("gemini", null, "GEMINI_API_KEY ausente");
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents: [{ role: "user", parts: [{ text: user }] }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: schema,
+            temperature: 0.4,
+            maxOutputTokens: 8192,
+          },
+        }),
+      },
+    );
+    if (!res.ok) await failure("gemini", res);
+    const body = (await res.json()) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    };
+    const text = body.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new ProviderError("gemini", null, "Resposta vazia.");
+    return JSON.parse(text) as unknown;
+  };
+
+  const openai = async () => {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new ProviderError("openai", null, "OPENAI_API_KEY ausente");
+    const res = await fetch(OPENAI_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        temperature: 0.4,
+        max_tokens: 8192,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: `${system}\n\nResponda SOMENTE com JSON válido neste formato:\n${JSON.stringify(schema)}`,
+          },
+          { role: "user", content: user },
+        ],
+      }),
+    });
+    if (!res.ok) await failure("openai", res);
+    const body = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const text = body.choices?.[0]?.message?.content;
+    if (!text) throw new ProviderError("openai", null, "Resposta vazia.");
+    return JSON.parse(text) as unknown;
+  };
+
+  try {
+    return await gemini();
+  } catch (error) {
+    if (!shouldFallback(error)) throw error;
+    return await openai();
+  }
+}

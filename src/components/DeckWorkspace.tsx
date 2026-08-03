@@ -5,6 +5,9 @@ import { citationLine, type Deck } from "@/lib/deck";
 import { exportPptx } from "@/lib/pptx";
 import { SlideView } from "./SlideView";
 import { PhaseBar, SlideSkeleton, phaseLabel, type Phase } from "./Progress";
+import type { EditHandler } from "./Editable";
+import { ChatPanel, type ChatMessage } from "./ChatPanel";
+import type { Id } from "../../convex/_generated/dataModel";
 
 export function DeckWorkspace({
   deck,
@@ -12,6 +15,8 @@ export function DeckWorkspace({
   shareId,
   phase,
   expectedSlides,
+  onEditSlide,
+  chat,
   onPresent,
   onRestart,
 }: {
@@ -20,6 +25,10 @@ export function DeckWorkspace({
   shareId?: string;
   phase?: Phase;
   expectedSlides?: number;
+  /** Absent when the reader doesn't own the deck — then nothing is editable. */
+  onEditSlide?: (slideIndex: number, patch: Parameters<EditHandler>[0]) => void;
+  /** Present only for the deck's owner; enables the AI editor. */
+  chat?: { deckId: Id<"decks">; messages: ChatMessage[] };
   onPresent: () => void;
   onRestart: () => void;
 }) {
@@ -35,6 +44,7 @@ export function DeckWorkspace({
   const [pinned, setPinned] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
+  const [chatOpen, setChatOpen] = useState(false);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const active = pinned ?? (streaming ? deck.slides.length - 1 : 0);
@@ -100,7 +110,11 @@ export function DeckWorkspace({
   );
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div
+      className={`flex min-h-screen flex-col transition-[padding] ${
+        chatOpen ? "lg:pr-[380px]" : ""
+      }`}
+    >
       <header className="sticky top-0 z-20 border-b border-rule bg-paper/90 px-4 py-2.5 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
@@ -146,6 +160,16 @@ export function DeckWorkspace({
               <path d="M10 3v10M10 13l-3.5-3.5M10 13l3.5-3.5" />
               <path d="M4 16h12" />
             </Action>
+            {chat && (
+              <Action
+                label="Editar com IA"
+                onClick={() => setChatOpen((v) => !v)}
+                disabled={busy}
+              >
+                <path d="M4 5h12M4 10h8M4 15h5" />
+                <path d="M14.5 13.5l1.2 2.4 2.4 1.2-2.4 1.2-1.2 2.4-1.2-2.4-2.4-1.2 2.4-1.2z" />
+              </Action>
+            )}
             <button
               onClick={onPresent}
               disabled={busy || deck.slides.length === 0}
@@ -184,8 +208,19 @@ export function DeckWorkspace({
                   index={clamped}
                   total={deck.slides.length}
                   references={deck.references}
+                  onEdit={
+                    onEditSlide && !busy
+                      ? (patch) => onEditSlide(clamped, patch)
+                      : undefined
+                  }
                 />
               </div>
+
+              {onEditSlide && !busy && (
+                <p className="-mt-2 w-full max-w-4xl text-xs text-ink-faint">
+                  Toque em qualquer texto do slide para editar.
+                </p>
+              )}
 
               {/* On a phone the navigator belongs directly under the slide. It
                   used to sit below the notes, so changing slides meant
@@ -251,6 +286,15 @@ export function DeckWorkspace({
           )}
         </main>
       </div>
+
+      {chat && (
+        <ChatPanel
+          deckId={chat.deckId}
+          messages={chat.messages}
+          open={chatOpen}
+          onClose={() => setChatOpen(false)}
+        />
+      )}
     </div>
   );
 }

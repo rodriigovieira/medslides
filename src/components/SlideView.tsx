@@ -5,6 +5,7 @@ import {
   type Slide,
 } from "@/lib/deck";
 import { fitSlide, sized } from "@/lib/fit";
+import { Editable, type EditHandler } from "./Editable";
 import { Diagram } from "./Diagram";
 
 /**
@@ -21,11 +22,14 @@ export function SlideView({
   index,
   total,
   references,
+  onEdit,
 }: {
   slide: Slide;
   index: number;
   total: number;
   references?: Reference[];
+  /** Present only in the workspace's main slide — never on thumbnails. */
+  onEdit?: EditHandler;
 }) {
   const image = slide.imageUrl;
   const treatment = imageTreatment(slide);
@@ -87,7 +91,7 @@ export function SlideView({
           paddingBottom: `${(6.5 + fit.footer - 2.6).toFixed(2)}cqw`,
         }}
       >
-        <Body slide={slide} dark={dark} scale={fit.scale} />
+        <Body slide={slide} dark={dark} scale={fit.scale} onEdit={onEdit} />
       </div>
 
       {slide.layout !== "capa" && (
@@ -181,11 +185,19 @@ function Body({
   slide,
   dark,
   scale,
+  onEdit,
 }: {
   slide: Slide;
   dark: boolean;
   scale: number;
+  onEdit?: EditHandler;
 }) {
+  const editable = Boolean(onEdit);
+  const setBullet = (i: number) => (text: string) => {
+    const bullets = [...(slide.bullets ?? [])];
+    bullets[i] = text;
+    onEdit?.({ bullets });
+  };
   const muted = dark ? "text-paper/85" : "text-ink-soft";
   const faint = dark ? "text-paper/65" : "text-ink-faint";
   const rule = dark ? "bg-paper" : "bg-clinical";
@@ -193,7 +205,7 @@ function Body({
   if (DIAGRAM_LAYOUTS.includes(slide.layout)) {
     return (
       <>
-        <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} scale={scale} />
+        <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} scale={scale} onEdit={onEdit} />
         <div className="mt-[3cqw] flex flex-1 flex-col">
           <Diagram slide={slide} dark={dark} />
         </div>
@@ -206,15 +218,21 @@ function Body({
       return (
         <div className="flex h-full flex-col justify-end pb-[2cqw]">
           <div className={`mb-[3.2cqw] h-[0.9cqw] w-[11cqw] ${rule}`} />
-          <h1 className="max-w-[80cqw] font-[family-name:var(--font-display)] text-[6.8cqw] leading-[1.02] tracking-tight">
-            {slide.title}
-          </h1>
+          <Editable
+            as="div"
+            value={slide.title}
+            editable={editable}
+            onCommit={(next) => onEdit?.({ title: next })}
+            className="max-w-[80cqw] font-[family-name:var(--font-display)] text-[6.8cqw] leading-[1.02] tracking-tight"
+          />
           {slide.subtitle && (
-            <p
+            <Editable
+              as="div"
+              value={slide.subtitle}
+              editable={editable}
+              onCommit={(next) => onEdit?.({ subtitle: next })}
               className={`mt-[2.6cqw] max-w-[62cqw] text-[2.5cqw] leading-snug ${muted}`}
-            >
-              {slide.subtitle}
-            </p>
+            />
           )}
         </div>
       );
@@ -222,15 +240,21 @@ function Body({
     case "secao":
       return (
         <div className="flex h-full flex-col justify-center">
-          <h2 className="max-w-[72cqw] font-[family-name:var(--font-display)] text-[5.8cqw] leading-[1.06] tracking-tight">
-            {slide.title}
-          </h2>
+          <Editable
+            as="div"
+            value={slide.title}
+            editable={editable}
+            onCommit={(next) => onEdit?.({ title: next })}
+            className="max-w-[72cqw] font-[family-name:var(--font-display)] text-[5.8cqw] leading-[1.06] tracking-tight"
+          />
           {slide.subtitle && (
-            <p
+            <Editable
+              as="div"
+              value={slide.subtitle}
+              editable={editable}
+              onCommit={(next) => onEdit?.({ subtitle: next })}
               className={`mt-[2.4cqw] max-w-[60cqw] text-[2.3cqw] leading-snug ${muted}`}
-            >
-              {slide.subtitle}
-            </p>
+            />
           )}
         </div>
       );
@@ -238,21 +262,33 @@ function Body({
     case "destaque":
       return (
         <div className="flex h-full flex-col justify-center">
-          <h2
+          <Editable
+            as="div"
+            value={slide.title}
+            editable={editable}
+            onCommit={(next) => onEdit?.({ title: next })}
             className={`max-w-[62cqw] text-[2.1cqw] font-medium uppercase leading-snug tracking-[0.16em] ${faint}`}
-          >
-            {slide.title}
-          </h2>
+          />
           {slide.stat && (
             <>
-              <div className="mt-[1.6cqw] font-[family-name:var(--font-display)] text-[13cqw] leading-[0.92] tracking-tight">
-                {slide.stat.value}
-              </div>
-              <p
+              <Editable
+                as="div"
+                value={slide.stat.value}
+                editable={editable}
+                onCommit={(next) =>
+                  onEdit?.({ stat: { value: next, label: slide.stat!.label } })
+                }
+                className="mt-[1.6cqw] font-[family-name:var(--font-display)] text-[13cqw] leading-[0.92] tracking-tight"
+              />
+              <Editable
+                as="div"
+                value={slide.stat.label}
+                editable={editable}
+                onCommit={(next) =>
+                  onEdit?.({ stat: { value: slide.stat!.value, label: next } })
+                }
                 className={`mt-[1.8cqw] max-w-[58cqw] text-[2.7cqw] leading-snug ${muted}`}
-              >
-                {slide.stat.label}
-              </p>
+              />
             </>
           )}
           {slide.bullets && slide.bullets.length > 0 && (
@@ -273,7 +309,7 @@ function Body({
     case "comparacao":
       return (
         <>
-          <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} scale={scale} />
+          <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} scale={scale} onEdit={onEdit} />
           <div className="mt-[3.6cqw] grid flex-1 grid-cols-2 gap-[4.5cqw]">
             {[slide.left, slide.right].map((col, i) =>
               col ? (
@@ -310,7 +346,7 @@ function Body({
     case "encerramento":
       return (
         <>
-          <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} scale={scale} />
+          <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} scale={scale} onEdit={onEdit} />
           <ul
             className="mt-[3.4cqw]"
             style={{ display: "grid", gap: sized(2, scale) }}
@@ -323,9 +359,13 @@ function Body({
                 >
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <span className="leading-snug" style={{ fontSize: sized(2.3, scale) }}>
-                  {b}
-                </span>
+                <Editable
+                  value={b}
+                  editable={editable}
+                  onCommit={setBullet(i)}
+                  className="leading-snug"
+                  style={{ fontSize: sized(2.3, scale) }}
+                />
               </li>
             ))}
           </ul>
@@ -335,7 +375,7 @@ function Body({
     default:
       return (
         <>
-          <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} scale={scale} />
+          <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} scale={scale} onEdit={onEdit} />
           <ul
             className="mt-[3.4cqw]"
             style={{ display: "grid", gap: sized(1.9, scale) }}
@@ -347,12 +387,13 @@ function Body({
                     dark ? "bg-paper/80" : "bg-clinical"
                   }`}
                 />
-                <span
+                <Editable
+                  value={b}
+                  editable={editable}
+                  onCommit={setBullet(i)}
                   className={`leading-snug ${muted}`}
                   style={{ fontSize: sized(2.3, scale) }}
-                >
-                  {b}
-                </span>
+                />
               </li>
             ))}
           </ul>
@@ -366,29 +407,37 @@ function SlideTitle({
   subtitle,
   dark,
   scale,
+  onEdit,
 }: {
   title: string;
   subtitle?: string;
   dark: boolean;
   scale: number;
+  onEdit?: EditHandler;
 }) {
   return (
     <div>
-      <h2
+      <Editable
+        as="div"
+        value={title}
+        editable={Boolean(onEdit)}
+        onCommit={(next) => onEdit?.({ title: next })}
+        placeholder="Título do slide"
         className="font-[family-name:var(--font-display)] leading-[1.12] tracking-tight"
         style={{ fontSize: sized(4.2, scale) }}
-      >
-        {title}
-      </h2>
+      />
       {subtitle && (
-        <p
+        <Editable
+          as="div"
+          value={subtitle}
+          editable={Boolean(onEdit)}
+          onCommit={(next) => onEdit?.({ subtitle: next })}
+          placeholder="Subtítulo"
           className={`mt-[1.3cqw] leading-snug ${
             dark ? "text-paper/70" : "text-ink-faint"
           }`}
           style={{ fontSize: sized(2, scale) }}
-        >
-          {subtitle}
-        </p>
+        />
       )}
     </div>
   );

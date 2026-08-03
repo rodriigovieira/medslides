@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import {
   internalMutation,
+  internalQuery,
   mutation,
   query,
   type MutationCtx,
@@ -245,5 +246,86 @@ export const attachReferences = internalMutation({
       return refs ? { ...slide, refs } : slide;
     });
     await ctx.db.patch(deckId, { references, slides });
+  },
+});
+
+const column = v.object({
+  heading: v.string(),
+  bullets: v.array(v.string()),
+});
+
+/**
+ * Inline text edits from the workspace.
+ *
+ * Only text fields travel; the mutation merges them into the stored slide so an
+ * edit can never drop `imageStorageId`, `refs` or the citation query — the
+ * client never sees those in the shape it renders, and sending the whole slide
+ * back would silently wipe them.
+ *
+ * Ownership is by `clientId`, the same anonymous per-browser id the quotas use.
+ * It identifies a browser, not a person: enough to stop a stranger with a share
+ * link from rewriting someone's deck, not a real permission system.
+ */
+export const editSlide = mutation({
+  args: {
+    deckId: v.id("decks"),
+    slideIndex: v.number(),
+    clientId: v.string(),
+    patch: v.object({
+      title: v.optional(v.string()),
+      subtitle: v.optional(v.string()),
+      bullets: v.optional(v.array(v.string())),
+      hub: v.optional(v.string()),
+      outcome: v.optional(v.string()),
+      stat: v.optional(v.object({ value: v.string(), label: v.string() })),
+      nodes: v.optional(
+        v.array(v.object({ heading: v.string(), body: v.optional(v.string()) })),
+      ),
+      left: v.optional(column),
+      right: v.optional(column),
+    }),
+  },
+  handler: async (ctx, { deckId, slideIndex, clientId, patch }) => {
+    const deck = await ctx.db.get(deckId);
+    if (!deck) throw new Error("Apresentação não encontrada.");
+    if (deck.clientId !== clientId) {
+      throw new Error("Só quem criou a apresentação pode editá-la.");
+    }
+    if (deck.status === "gerando") {
+      throw new Error("Espere a geração terminar para editar.");
+    }
+    const current = deck.slides[slideIndex];
+    if (!current) throw new Error("Slide inexistente.");
+
+    // Drop empty strings rather than storing them: an emptied title would
+    // render as a blank slide with no way back.
+    const clean: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined) continue;
+      if (typeof value === "string" && value.trim() === "") continue;
+      clean[key] = typeof value === "string" ? value.trim() : value;
+    }
+    if (Object.keys(clean).length === 0) return;
+
+    const slides = deck.slides.map((slide, i) =>
+      i === slideIndex ? { ...slide, ...clean } : slide,
+    );
+    await ctx.db.patch(deckId, { slides });
+  },
+});
+
+/** Ownership-checked read used by the AI editor before it changes anything. */
+export const loadForEdit = internalQuery({
+  args: { deckId: v.id("decks"), clientId: v.string() },
+  handler: async (ctx, { deckId, clientId }) => {
+    const deck = await ctx.db.get(deckId);
+    if (!deck) throw new Error("Apresentação não encontrada.");
+    if (deck.clientId !== clientId) {
+      throw new Error("Só quem criou a apresentação pode editá-la.");
+    }
+    if (deck.status === "gerando") {
+      throw new Error("Espere a geração terminar para editar.");
+    }
+    return deck;
   },
 });

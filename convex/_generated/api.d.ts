@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as chat from "../chat.js";
+import type * as chatOps from "../chatOps.js";
 import type * as decks from "../decks.js";
 import type * as generate from "../generate.js";
 import type * as images from "../images.js";
@@ -22,6 +24,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  chat: typeof chat;
+  chatOps: typeof chatOps;
   decks: typeof decks;
   generate: typeof generate;
   images: typeof images;

@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
+import { getClientId } from "@/lib/session";
 import { DeckWorkspace } from "./DeckWorkspace";
 import { Presenter } from "./Presenter";
 
@@ -12,6 +13,7 @@ export function SharedDeck({ deckId }: { deckId: string }) {
   const router = useRouter();
   const [presenting, setPresenting] = useState(false);
 
+  const editSlide = useMutation(api.decks.editSlide);
   const record = useQuery(api.decks.get, {
     deckId: deckId as Id<"decks">,
   });
@@ -39,6 +41,27 @@ export function SharedDeck({ deckId }: { deckId: string }) {
         shareId={deckId}
         phase={record.phase}
         expectedSlides={record.slideCount}
+        chat={
+          record.clientId === getClientId()
+            ? {
+                deckId: deckId as Id<"decks">,
+                messages: record.chat ?? [],
+              }
+            : undefined
+        }
+        onEditSlide={
+          // A share link is public; only the browser that made the deck edits it.
+          record.clientId === getClientId()
+            ? (slideIndex, patch) => {
+                void editSlide({
+                  deckId: deckId as Id<"decks">,
+                  slideIndex,
+                  clientId: getClientId(),
+                  patch,
+                });
+              }
+            : undefined
+        }
         onPresent={() => setPresenting(true)}
         onRestart={() => router.push("/")}
       />

@@ -103,6 +103,17 @@ export default defineSchema({
       ),
     ),
 
+    /** Conversation with the AI editor, oldest first. */
+    chat: v.optional(
+      v.array(
+        v.object({
+          role: v.union(v.literal("user"), v.literal("assistant")),
+          text: v.string(),
+          at: v.number(),
+        }),
+      ),
+    ),
+
     clientId: v.string(),
     createdAt: v.number(),
   })

@@ -28,6 +28,7 @@ export function Studio() {
   );
 
   const start = useMutation(api.decks.start);
+  const editSlide = useMutation(api.decks.editSlide);
   const record = useQuery(api.decks.get, deckId ? { deckId } : "skip");
 
   const deck: Deck | null = useMemo(() => {
@@ -75,6 +76,18 @@ export function Studio() {
           shareId={deckId}
           phase={record?.phase}
           expectedSlides={record?.slideCount}
+          chat={
+            deckId ? { deckId, messages: record?.chat ?? [] } : undefined
+          }
+          onEditSlide={(slideIndex, patch) => {
+            if (!deckId) return;
+            void editSlide({
+              deckId,
+              slideIndex,
+              clientId: getClientId(),
+              patch,
+            }).catch((err) => setError(readableError(err)));
+          }}
           onPresent={() => setPresenting(true)}
           onRestart={restart}
         />
