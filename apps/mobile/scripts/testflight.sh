@@ -37,8 +37,9 @@ Archives the iOS app and, with --upload, sends it to TestFlight. Without
                     commonest failure here, and it happens after the archive.
   -h, --help        Show this help.
 
-Requires ios/Flutter/Signing.xcconfig (copy Signing.example.xcconfig) and, for
---upload, .env.local in this directory with:
+Requires ios/Flutter/Signing.xcconfig (copy Signing.example.xcconfig), the
+"MedSlides App Store" provisioning profile (create it once with
+scripts/create-profile.py) and, for --upload, .env.local in this directory:
   APP_STORE_API_KEY_ID     e.g. WGXQ6U853Z; AuthKey_<ID>.p8 must be in
                            ~/.appstoreconnect/private_keys/
   APP_STORE_API_ISSUER_ID  the issuer UUID from the App Store Connect Keys page
@@ -85,12 +86,59 @@ flutter analyze
 echo "==> Testing"
 flutter test
 
-echo "==> Building"
-BUILD_ARGS=(--release)
-[[ -n "$BUILD_NUMBER" ]] && BUILD_ARGS+=(--build-number "$BUILD_NUMBER")
-flutter build ipa "${BUILD_ARGS[@]}" --export-method app-store
+# `flutter build ipa` cannot sign on this machine. It drives Xcode's automatic
+# signing, which needs an Apple ID signed into Xcode; there is none, so it dies
+# with "No Accounts" and "Cloud signing permission error" — at export, after
+# the ten-minute archive. So the archive and the export are run separately and
+# the export signs manually against a profile minted from the API key.
+PROFILE_NAME="MedSlides App Store"
+if ! grep -qls "$PROFILE_NAME" \
+    "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/"*.mobileprovision \
+    2>/dev/null; then
+  echo "No '$PROFILE_NAME' provisioning profile installed." >&2
+  echo "Run: python3 scripts/create-profile.py" >&2
+  exit 1
+fi
 
-IPA="$(find build/ios/ipa -name '*.ipa' -maxdepth 1 | head -1)"
+echo "==> Building"
+BUILD_ARGS=(--release --no-codesign)
+[[ -n "$BUILD_NUMBER" ]] && BUILD_ARGS+=(--build-number "$BUILD_NUMBER")
+flutter build ios "${BUILD_ARGS[@]}"
+
+echo "==> Archiving"
+rm -rf "$ARCHIVE"
+mkdir -p "$BUILD_DIR"
+xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \
+  -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+  -archivePath "$ARCHIVE" archive
+
+echo "==> Exporting"
+EXPORT_DIR="$BUILD_DIR/ipa"
+rm -rf "$EXPORT_DIR"
+EXPORT_PLIST="$BUILD_DIR/ExportOptions.plist"
+cat > "$EXPORT_PLIST" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>method</key><string>app-store-connect</string>
+  <key>teamID</key><string>YT5JKQN5YD</string>
+  <key>signingStyle</key><string>manual</string>
+  <key>signingCertificate</key>
+  <string>Apple Distribution: Rodrigo Rodrigues (YT5JKQN5YD)</string>
+  <key>provisioningProfiles</key>
+  <dict>
+    <key>br.com.pandapdv.medslides</key><string>$PROFILE_NAME</string>
+  </dict>
+  <key>uploadSymbols</key><true/>
+  <key>destination</key><string>export</string>
+</dict>
+</plist>
+PLIST
+xcodebuild -exportArchive -archivePath "$ARCHIVE" \
+  -exportOptionsPlist "$EXPORT_PLIST" -exportPath "$EXPORT_DIR"
+
+IPA="$(find "$EXPORT_DIR" -maxdepth 1 -name '*.ipa' | head -1)"
 if [[ -z "$IPA" ]]; then
   echo "No .ipa produced." >&2
   exit 1
