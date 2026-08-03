@@ -4,20 +4,31 @@ import { useRef, useState } from "react";
 import { citationLine, type Deck } from "@/lib/deck";
 import { exportPptx } from "@/lib/pptx";
 import { SlideView } from "./SlideView";
+import { PhaseBar, SlideSkeleton, phaseLabel, type Phase } from "./Progress";
 
 export function DeckWorkspace({
   deck,
   streaming,
   shareId,
+  phase,
+  expectedSlides,
   onPresent,
   onRestart,
 }: {
   deck: Deck;
   streaming: boolean;
   shareId?: string;
+  phase?: Phase;
+  expectedSlides?: number;
   onPresent: () => void;
   onRestart: () => void;
 }) {
+  const busy = Boolean(phase) && phase !== "pronto";
+  // How many slides are still to come, for the skeleton placeholders.
+  const pending = Math.max(
+    0,
+    Math.min(expectedSlides ?? 0, 25) - deck.slides.length,
+  );
   const [copied, setCopied] = useState(false);
   // `null` means "not pinned yet": while slides stream in we follow the newest
   // one, and once the reader picks a thumbnail we stay on their choice.
@@ -83,7 +94,7 @@ export function DeckWorkspace({
     <Thumbnails
       deck={deck}
       current={clamped}
-      streaming={streaming}
+      pending={pending}
       onPick={setPinned}
     />
   );
@@ -96,14 +107,20 @@ export function DeckWorkspace({
             <h1 className="truncate font-[family-name:var(--font-display)] text-[17px] leading-tight lg:text-xl">
               {deck.title || "Gerando…"}
             </h1>
-            <p className="truncate text-[11px] text-ink-faint lg:text-xs">
-              {deck.slides.length} slides · {deck.audience}
-              {streaming && (
-                <span className="pulse-soft ml-2 text-clinical">
-                  escrevendo…
+            {busy ? (
+              <div className="mt-1 flex items-center gap-3">
+                <PhaseBar phase={phase} />
+                <span className="hidden truncate text-[11px] text-ink-faint xl:inline">
+                  {phaseLabel(phase)}
                 </span>
-              )}
-            </p>
+              </div>
+            ) : (
+              <p className="truncate text-[11px] text-ink-faint lg:text-xs">
+                {deck.slides.length} slides · {deck.audience}
+                {(deck.references?.length ?? 0) > 0 &&
+                  ` · ${deck.references?.length} referências`}
+              </p>
+            )}
           </div>
 
           {/* Labels collapse to icons on a phone — as text buttons they wrapped
@@ -124,14 +141,14 @@ export function DeckWorkspace({
             <Action
               label={exporting ? "Gerando…" : "Baixar"}
               onClick={doExport}
-              disabled={streaming || exporting}
+              disabled={busy || exporting}
             >
               <path d="M10 3v10M10 13l-3.5-3.5M10 13l3.5-3.5" />
               <path d="M4 16h12" />
             </Action>
             <button
               onClick={onPresent}
-              disabled={streaming}
+              disabled={busy || deck.slides.length === 0}
               className="ml-1 rounded-lg bg-ink px-3 py-2 text-sm font-medium text-paper transition hover:bg-clinical-deep disabled:opacity-40"
             >
               Apresentar
@@ -205,20 +222,29 @@ export function DeckWorkspace({
                 <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-ink-soft">
                   {slide.notes || "—"}
                 </p>
-                <SlideReferences slide={slide} references={deck.references} />
+                <SlideReferences
+                  slide={slide}
+                  references={deck.references}
+                  searching={phase === "referencias"}
+                />
                 {slide.imageCredit && (
                   <p className="mt-3 text-sm text-ink-faint">
                     {slide.imageCredit}
                   </p>
                 )}
               </div>
+
+              <Bibliography deck={deck} onJump={setPinned} />
             </>
           ) : (
-            <div className="flex w-full max-w-4xl flex-1 flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-rule py-24">
-              <span className="pulse-soft text-sm text-ink-faint">
-                Montando o roteiro da apresentação…
-              </span>
-              <p className="max-w-sm text-center text-xs leading-relaxed text-ink-faint/80">
+            <div className="w-full max-w-4xl">
+              <SlideSkeleton />
+              <p className="mt-4 text-center text-sm text-ink-faint">
+                <span className="pulse-soft">
+                  Montando o roteiro da apresentação…
+                </span>
+              </p>
+              <p className="mt-1 text-center text-xs text-ink-faint/80">
                 Os slides aparecem aqui conforme forem escritos.
               </p>
             </div>
@@ -233,14 +259,24 @@ export function DeckWorkspace({
 function SlideReferences({
   slide,
   references,
+  searching,
 }: {
   slide: Deck["slides"][number];
   references?: Deck["references"];
+  searching?: boolean;
 }) {
   const cited = (slide.refs ?? [])
     .map((n) => references?.find((r) => r.n === n))
     .filter((r): r is NonNullable<typeof r> => Boolean(r));
-  if (cited.length === 0) return null;
+
+  if (cited.length === 0) {
+    if (!searching) return null;
+    return (
+      <p className="pulse-soft mt-4 border-t border-rule pt-3 text-sm text-ink-faint">
+        Buscando estudos no PubMed…
+      </p>
+    );
+  }
 
   return (
     <div className="mt-4 border-t border-rule pt-3">
@@ -272,15 +308,80 @@ function SlideReferences({
   );
 }
 
+/**
+ * Every study behind the deck, in one place. The per-slide list answers "what
+ * backs this claim"; this answers "what is this deck built on", and is the view
+ * someone actually checks before presenting.
+ */
+function Bibliography({
+  deck,
+  onJump,
+}: {
+  deck: Deck;
+  onJump: (index: number) => void;
+}) {
+  const refs = deck.references ?? [];
+  if (refs.length === 0) return null;
+
+  const slideFor = (n: number) =>
+    deck.slides.findIndex((s) => (s.refs ?? []).includes(n));
+
+  return (
+    <details className="w-full max-w-4xl rounded-lg border border-rule bg-paper-raised/60 px-4 py-3">
+      <summary className="cursor-pointer list-none text-sm font-medium text-ink-soft marker:hidden">
+        <span className="inline-flex items-center gap-2">
+          <span>Estudos usados nesta apresentação</span>
+          <span className="rounded-full bg-clinical/10 px-2 py-0.5 text-xs tabular-nums text-clinical-deep">
+            {refs.length}
+          </span>
+        </span>
+      </summary>
+
+      <ol className="mt-3 space-y-3 border-t border-rule pt-3">
+        {refs.map((ref) => {
+          const slide = slideFor(ref.n);
+          return (
+            <li key={ref.n} className="text-sm leading-snug text-ink-soft">
+              <span className="tabular-nums text-ink-faint">{ref.n}.</span>{" "}
+              {ref.title}{" "}
+              <span className="text-ink-faint">{citationLine(ref)}</span>{" "}
+              <a
+                href={ref.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="whitespace-nowrap text-clinical underline underline-offset-2 hover:text-clinical-deep"
+              >
+                PMID {ref.pmid}
+              </a>
+              {slide >= 0 && (
+                <button
+                  onClick={() => onJump(slide)}
+                  className="ml-2 whitespace-nowrap text-xs text-ink-faint underline underline-offset-2 hover:text-ink-soft"
+                >
+                  slide {slide + 1}
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+      <p className="mt-3 text-xs text-ink-faint">
+        Localizados no PubMed a partir do tema de cada slide. Confirme se
+        sustentam a afirmação antes de apresentar.
+      </p>
+    </details>
+  );
+}
+
 function Thumbnails({
   deck,
   current,
-  streaming,
+  pending,
   onPick,
 }: {
   deck: Deck;
   current: number;
-  streaming: boolean;
+  pending: number;
   onPick: (index: number) => void;
 }) {
   return (
@@ -313,11 +414,19 @@ function Thumbnails({
           </span>
         </button>
       ))}
-      {streaming && (
-        <div className="pulse-soft flex w-36 shrink-0 items-center justify-center rounded-md border border-dashed border-rule py-8 text-xs text-ink-faint lg:ml-6 lg:w-auto lg:flex-1">
-          próximo slide…
+      {/* One placeholder per slide still to come, so the rail shows the whole
+          deck's shape from the first second instead of growing unpredictably. */}
+      {Array.from({ length: Math.min(pending, 8) }).map((_, i) => (
+        <div
+          key={`skeleton-${i}`}
+          className="flex w-36 shrink-0 items-center gap-2 lg:w-full"
+        >
+          <span className="hidden w-4 shrink-0 text-right text-[11px] text-ink-faint/40 lg:block">
+            {deck.slides.length + i + 1}
+          </span>
+          <SlideSkeleton className="min-w-0 flex-1" />
         </div>
-      )}
+      ))}
     </>
   );
 }

@@ -73,6 +73,8 @@ export function Studio() {
           deck={deck ?? { title: "", subtitle: "", audience: "", slides: [] }}
           streaming={streaming}
           shareId={deckId}
+          phase={record?.phase}
+          expectedSlides={record?.slideCount}
           onPresent={() => setPresenting(true)}
           onRestart={restart}
         />

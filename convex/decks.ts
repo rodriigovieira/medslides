@@ -89,6 +89,7 @@ export const start = mutation({
       subtitle: "",
       slides: [],
       status: "gerando",
+      phase: "texto",
       clientId: args.clientId,
       createdAt: Date.now(),
     });
@@ -167,6 +168,23 @@ export const finish = internalMutation({
   },
 });
 
+export const setPhase = internalMutation({
+  args: {
+    deckId: v.id("decks"),
+    phase: v.union(
+      v.literal("texto"),
+      v.literal("referencias"),
+      v.literal("imagens"),
+      v.literal("pronto"),
+    ),
+  },
+  handler: async (ctx, { deckId, phase }) => {
+    const deck = await ctx.db.get(deckId);
+    if (!deck) return;
+    await ctx.db.patch(deckId, { phase });
+  },
+});
+
 export const attachImage = internalMutation({
   args: {
     deckId: v.id("decks"),
@@ -194,6 +212,7 @@ export const fail = internalMutation({
     // A partial deck is still useful; keep the slides and flag what happened.
     await ctx.db.patch(deckId, {
       status: deck.slides.length >= 3 ? "pronto" : "erro",
+      phase: "pronto",
       error,
     });
   },

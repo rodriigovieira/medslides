@@ -37,6 +37,8 @@ export function SharedDeck({ deckId }: { deckId: string }) {
         deck={deck}
         streaming={record.status === "gerando"}
         shareId={deckId}
+        phase={record.phase}
+        expectedSlides={record.slideCount}
         onPresent={() => setPresenting(true)}
         onRestart={() => router.push("/")}
       />

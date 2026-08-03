@@ -67,6 +67,19 @@ export default defineSchema({
       v.literal("pronto"),
       v.literal("erro"),
     ),
+    /**
+     * Finer-grained progress than `status`. Text finishes long before the deck
+     * does — references and images land afterwards — so `status: "pronto"` on
+     * its own told the user it was finished while work was still running.
+     */
+    phase: v.optional(
+      v.union(
+        v.literal("texto"),
+        v.literal("referencias"),
+        v.literal("imagens"),
+        v.literal("pronto"),
+      ),
+    ),
     error: v.optional(v.string()),
 
     // Which provider actually produced the deck — Gemini normally, OpenAI when

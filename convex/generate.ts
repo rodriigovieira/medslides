@@ -84,8 +84,24 @@ export const run = internalAction({
 
       // References and images come after the text is committed, so a slow or
       // failing external service never delays — or breaks — a finished deck.
+      // The phase is published as we go: the text lands in ~30s but the deck
+      // isn't done for another minute, and the user deserves to know which.
+      await ctx.runMutation(internal.decks.setPhase, {
+        deckId,
+        phase: "referencias",
+      });
       await attachReferences(ctx, deckId, parsed.slides);
+
+      await ctx.runMutation(internal.decks.setPhase, {
+        deckId,
+        phase: "imagens",
+      });
       await attachImages(ctx, deckId, parsed.slides, req.topic);
+
+      await ctx.runMutation(internal.decks.setPhase, {
+        deckId,
+        phase: "pronto",
+      });
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Falha ao gerar os slides.";
