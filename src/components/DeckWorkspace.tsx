@@ -88,23 +88,35 @@ export function DeckWorkspace({
       <div className="flex flex-1 flex-col lg:flex-row">
         <nav className="order-2 flex gap-3 overflow-x-auto border-t border-rule p-3 lg:order-1 lg:w-56 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-r lg:border-t-0">
           {deck.slides.map((s, i) => (
+            // The index sits beside the slide, never over it — at thumbnail
+            // scale an overlaid badge covers the first words of the title.
             <button
               key={i}
               onClick={() => setPinned(i)}
-              className={`rise group relative w-40 shrink-0 overflow-hidden rounded-md border text-left transition lg:w-full ${
-                i === clamped
-                  ? "border-clinical ring-2 ring-clinical/25"
-                  : "border-rule hover:border-ink-faint"
-              }`}
+              className="rise group flex w-44 shrink-0 items-center gap-2 text-left lg:w-full"
             >
-              <SlideView slide={s} index={i} total={deck.slides.length} />
-              <span className="absolute left-1 top-1 rounded bg-ink/75 px-1.5 py-0.5 text-[10px] font-medium text-paper tabular-nums">
+              <span
+                className={`w-4 shrink-0 text-right text-[11px] tabular-nums transition ${
+                  i === clamped
+                    ? "font-semibold text-clinical"
+                    : "text-ink-faint group-hover:text-ink-soft"
+                }`}
+              >
                 {i + 1}
+              </span>
+              <span
+                className={`min-w-0 flex-1 overflow-hidden rounded-md border transition ${
+                  i === clamped
+                    ? "border-clinical ring-2 ring-clinical/25"
+                    : "border-rule group-hover:border-ink-faint"
+                }`}
+              >
+                <SlideView slide={s} index={i} total={deck.slides.length} />
               </span>
             </button>
           ))}
           {streaming && (
-            <div className="pulse-soft flex w-40 shrink-0 items-center justify-center rounded-md border border-dashed border-rule py-8 text-xs text-ink-faint lg:w-full">
+            <div className="pulse-soft ml-6 flex w-38 shrink-0 items-center justify-center rounded-md border border-dashed border-rule py-8 text-xs text-ink-faint lg:w-auto lg:flex-1">
               próximo slide…
             </div>
           )}
