@@ -66,6 +66,8 @@ export type Slide = {
   imageQuery?: string;
   /** Photo credit, shown small on the slide. */
   imageCredit?: string;
+  /** Origin of the photo, used to keep one from appearing on two slides. */
+  imageSource?: string;
   /** Resolved after generation; the renderer decides how to use it per layout. */
   imageUrl?: string;
 };
@@ -195,6 +197,9 @@ export function sanitizeSlide(value: unknown): Slide | null {
   }
   if (typeof raw.imageCredit === "string" && raw.imageCredit) {
     slide.imageCredit = raw.imageCredit;
+  }
+  if (typeof raw.imageSource === "string" && raw.imageSource) {
+    slide.imageSource = raw.imageSource;
   }
   if (typeof raw.imageUrl === "string" && raw.imageUrl) {
     slide.imageUrl = raw.imageUrl;

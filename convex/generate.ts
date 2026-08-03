@@ -362,18 +362,15 @@ async function attachImages(
   }
 
   // Don't repeat a photo inside one deck — the same corridor twice reads as a
-  // bug even when each slide picked it independently. The credit line is derived
-  // from the photo, so it doubles as the identity of one already on the deck:
-  // without this, a slide enriched later would deterministically be handed the
-  // first fallback result, which is exactly the one the cover already used.
+  // bug even when each slide picked it independently. Seeded with what the deck
+  // already carries, because a slide enriched after generation searches the same
+  // pools in the same order and would otherwise be handed the cover's photo.
   const used = new Set<string>(
-    slides.map((s) => s.imageCredit).filter((c): c is string => Boolean(c)),
+    slides.map((s) => s.imageSource).filter((s): s is string => Boolean(s)),
   );
   const pick = (query: string): StockImage | null => {
     for (const pool of [pools.get(query) ?? [], fallback]) {
-      const found = pool.find(
-        (image) => !used.has(image.url) && !used.has(creditLine(image)),
-      );
+      const found = pool.find((image) => !used.has(image.url));
       if (found) {
         used.add(found.url);
         return found;
@@ -396,6 +393,7 @@ async function attachImages(
         slideIndex,
         storageId,
         credit: creditLine(image),
+        source: image.url,
       });
     } catch (error) {
       console.warn(`Imagem do slide ${slideIndex} falhou: ${String(error)}`);

@@ -192,13 +192,19 @@ export const attachImage = internalMutation({
     slideIndex: v.number(),
     storageId: v.id("_storage"),
     credit: v.optional(v.string()),
+    source: v.optional(v.string()),
   },
-  handler: async (ctx, { deckId, slideIndex, storageId, credit }) => {
+  handler: async (ctx, { deckId, slideIndex, storageId, credit, source }) => {
     const deck = await ctx.db.get(deckId);
     if (!deck) return;
     const slides = deck.slides.map((slide, index) =>
       index === slideIndex
-        ? { ...slide, imageStorageId: storageId, imageCredit: credit }
+        ? {
+            ...slide,
+            imageStorageId: storageId,
+            imageCredit: credit,
+            imageSource: source,
+          }
         : slide,
     );
     await ctx.db.patch(deckId, { slides });

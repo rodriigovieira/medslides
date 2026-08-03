@@ -129,6 +129,16 @@ export const applyOps = internalMutation({
     if (applied === 0) return empty;
     // 25 is the generator's own ceiling; keep the editor inside it.
     slides = slides.slice(0, 25);
+
+    // Keep the closing slide closing. Asked for three slides on vasopressors,
+    // the model placed one before "Mensagens Finais" and two after it — each
+    // position defensible on its own, the result absurd. The deck has exactly
+    // one closing slide and its whole job is to be last, so this is settled
+    // here rather than argued with the model in the prompt.
+    const closing = slides.filter((s) => s.layout === "encerramento");
+    if (closing.length === 1 && slides.indexOf(closing[0]) !== slides.length - 1) {
+      slides = [...slides.filter((s) => s !== closing[0]), closing[0]];
+    }
     await ctx.db.patch(deckId, { slides });
 
     // Resolve the tracked slides to their settled positions; anything that fell

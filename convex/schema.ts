@@ -41,6 +41,13 @@ export const slideValidator = v.object({
   imageQuery: v.optional(v.string()),
   imageCredit: v.optional(v.string()),
   /**
+   * The stock photo this came from. Kept as the photo's identity: the credit
+   * line names the *photographer*, who usually has several photos in the pool,
+   * so it can't answer "is this the same picture the cover already used?" — the
+   * question a slide enriched later has to ask.
+   */
+  imageSource: v.optional(v.string()),
+  /**
    * Legacy: decks generated before the switch from AI image generation to stock
    * photography carry this. Nothing writes it any more, but removing it from the
    * validator would fail the schema push against those existing rows.
