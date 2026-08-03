@@ -8,6 +8,7 @@ import { PhaseBar, SlideSkeleton, phaseLabel, type Phase } from "./Progress";
 import type { EditHandler } from "./Editable";
 import { ChatPanel, type ChatMessage } from "./ChatPanel";
 import { SlidePrompt } from "./SlidePrompt";
+import { BulletTools } from "./BulletTools";
 import type { Id } from "../../convex/_generated/dataModel";
 
 export function DeckWorkspace({
@@ -51,14 +52,42 @@ export function DeckWorkspace({
   const [chatOpen, setChatOpen] = useState(false);
   const [promptOpen, setPromptOpen] = useState(false);
   const [promptSeed, setPromptSeed] = useState<string | undefined>();
+  const [activeBullet, setActiveBullet] = useState<number | null>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const active = pinned ?? (streaming ? deck.slides.length - 1 : 0);
   const clamped = Math.max(0, Math.min(active, deck.slides.length - 1));
   const slide = deck.slides[clamped] as Deck["slides"][number] | undefined;
 
-  const step = (delta: number) =>
+  /**
+   * Reordering must release focus first: the editor freezes its text while
+   * focused, so it would keep showing the old value and write it back on blur.
+   */
+  const releaseFocus = () => {
+    const el = document.activeElement;
+    if (el instanceof HTMLElement) el.blur();
+  };
+  const moveBullet = (index: number, delta: number) => {
+    const bullets = [...(slide?.bullets ?? [])];
+    const target = index + delta;
+    if (target < 0 || target >= bullets.length) return;
+    releaseFocus();
+    [bullets[index], bullets[target]] = [bullets[target], bullets[index]];
+    onEditSlide?.(clamped, { bullets });
+    setActiveBullet(target);
+  };
+  const removeBullet = (index: number) => {
+    const bullets = slide?.bullets ?? [];
+    if (bullets.length <= 1) return;
+    releaseFocus();
+    onEditSlide?.(clamped, { bullets: bullets.filter((_, i) => i !== index) });
+    setActiveBullet(null);
+  };
+
+  const step = (delta: number) => {
+    setActiveBullet(null);
     setPinned(Math.max(0, Math.min(deck.slides.length - 1, clamped + delta)));
+  };
 
   const doExport = async () => {
     setExporting(true);
@@ -219,16 +248,43 @@ export function DeckWorkspace({
                       ? (patch) => onEditSlide(clamped, patch)
                       : undefined
                   }
-                  onAskAi={
-                    chat && !busy
-                      ? (instruction) => {
-                          setPromptSeed(instruction);
-                          setPromptOpen(true);
-                        }
-                      : undefined
-                  }
+                  onBulletFocus={setActiveBullet}
                 />
               </div>
+
+              {/* Below the slide, not floating over it: on a phone the slide is
+                  small and a floating toolbar covered the very bullets being
+                  edited — and blocked the taps meant for them. */}
+              {onEditSlide &&
+                !busy &&
+                activeBullet !== null &&
+                (slide.bullets?.length ?? 0) > 0 && (
+                  <div className="-mt-2 flex w-full max-w-4xl items-center gap-3">
+                    <span className="text-xs text-ink-faint">
+                      Tópico {activeBullet + 1}
+                    </span>
+                    <BulletTools
+                      canMoveUp={activeBullet > 0}
+                      canMoveDown={
+                        activeBullet < (slide.bullets?.length ?? 0) - 1
+                      }
+                      canRemove={(slide.bullets?.length ?? 0) > 1}
+                      onMoveUp={() => moveBullet(activeBullet, -1)}
+                      onMoveDown={() => moveBullet(activeBullet, 1)}
+                      onRemove={() => removeBullet(activeBullet)}
+                      onAskAi={
+                        chat
+                          ? () => {
+                              setPromptSeed(
+                                `Reescreva o tópico "${slide.bullets?.[activeBullet]}" deste slide, mantendo os demais.`,
+                              );
+                              setPromptOpen(true);
+                            }
+                          : undefined
+                      }
+                    />
+                  </div>
+                )}
 
               {onEditSlide && !busy && (
                 <div className="-mt-2 flex w-full max-w-4xl items-center gap-3">

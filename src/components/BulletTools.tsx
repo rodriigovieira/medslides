@@ -1,11 +1,13 @@
 "use client";
 
 /**
- * Floating actions for the bullet being edited.
+ * Actions for the bullet being edited.
  *
  * In-place editing lets you retype a bullet but never reorder or delete one —
- * this is that missing half. It sits outside the slide's own scale so the
- * targets stay finger-sized no matter how small the slide is rendered.
+ * this is that missing half. It renders *below* the slide rather than floating
+ * over it: at phone size a floating bar covered the very bullets it edits, and
+ * swallowed the taps aimed at them. Outside the slide, the targets also keep a
+ * finger-sized 36px no matter how small the slide is drawn.
  *
  * Every button suppresses `mousedown`/`touchstart`: the bullet next to it is a
  * focused contentEditable, and letting the press steal focus would commit and
@@ -32,7 +34,7 @@ export function BulletTools({
 
   return (
     <div
-      className="absolute -top-4 right-0 z-10 flex items-center gap-0.5 rounded-lg bg-ink p-1 shadow-[0_10px_28px_-12px_rgba(0,0,0,.55)]"
+      className="flex items-center gap-0.5 rounded-lg border border-rule bg-paper-raised p-1 shadow-[0_6px_18px_-10px_rgba(14,27,42,.4)]"
       onMouseDown={hold}
       onTouchStart={hold}
     >
@@ -50,7 +52,7 @@ export function BulletTools({
           onClick={onAskAi}
           aria-label="Reescrever com IA"
           title="Reescrever com IA"
-          className="flex h-8 items-center gap-1 rounded-md px-2 text-xs text-paper/85 transition hover:bg-paper/15"
+          className="flex h-9 items-center gap-1 rounded-md px-2.5 text-xs text-clinical-deep transition hover:bg-rule/60"
         >
           <span aria-hidden>✦</span> IA
         </button>
@@ -76,7 +78,7 @@ function Tool({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex h-8 w-8 items-center justify-center rounded-md text-paper/85 transition hover:bg-paper/15 disabled:opacity-25"
+      className="flex h-9 w-9 items-center justify-center rounded-md text-ink-soft transition hover:bg-rule/60 disabled:opacity-25"
     >
       <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden>
         <g
