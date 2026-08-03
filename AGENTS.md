@@ -55,6 +55,19 @@ flutter pub get && flutter analyze && flutter test
 - Signing lives in gitignored `ios/Flutter/Signing.xcconfig` (copy the
   `.example`). `scripts/testflight.sh --upload` is the only thing that ships the
   app — there is no CI for it, so a tag is never evidence of a build.
+- **`flutter test` never touches a network.** The end-to-end run is
+  `integration_test/smoke_test.dart`, driven by hand against a simulator, and
+  it generates a **real deck on production** — the only deployment the phone
+  knows. Run it before shipping; it is what caught the deck screen's action row
+  overflowing and the render test hanging.
+
+  ```sh
+  flutter drive --driver=test_driver/integration_test.dart \
+    --target=integration_test/smoke_test.dart -d SIMULATOR_UDID
+  ```
+
+  Wait with `pump` loops, never `pumpAndSettle`: the list's ✦ and the waiting
+  screen's skeleton animate forever, so nothing this test visits ever settles.
 - The `.pptx` is still exported by the browser. The phone opens the web page
   rather than carrying a second exporter that would have to be kept in step
   with the first — and the first is the one that already survived the
