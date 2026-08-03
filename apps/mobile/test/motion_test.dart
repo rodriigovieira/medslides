@@ -1,6 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medslides_mobile/models/deck.dart';
 import 'package:medslides_mobile/slides/motion.dart';
+import 'package:medslides_mobile/slides/motion_scope.dart';
 
 /// The recipe numbers are transcribed from `src/lib/motion.ts`, so the risk is
 /// not that the arithmetic is wrong but that a number drifts from the web's.
@@ -48,6 +50,8 @@ void main() {
         (normal.timingFor(2).delay.inMilliseconds * 0.65).round());
   });
 
+  _widgets();
+
   group('parsing', () {
     test('an unknown preset falls back to suave, never to nenhuma', () {
       // A deck saved by a newer build carries names this one has not heard of.
@@ -93,5 +97,109 @@ void main() {
         expect(MotionPace.parse(pace).name, pace);
       }
     });
+  });
+}
+
+/// The arithmetic above is only half of it: these prove the widgets actually
+/// hold an element back and then bring it in, which is the part a wrong
+/// `didChangeDependencies` would silently skip while every number still
+/// checked out.
+void _widgets() {
+  Widget harness({required MotionPlan plan, bool playing = true}) {
+    return MediaQuery(
+      data: const MediaQueryData(),
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: MotionScope(
+          plan: plan,
+          playing: playing,
+          child: Column(
+            children: staged([
+              const Text('first'),
+              const Text('second'),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  double opacityOf(WidgetTester tester, String text) {
+    final opacity = tester.widget<Opacity>(
+      find.ancestor(of: find.text(text), matching: find.byType(Opacity)).first,
+    );
+    return opacity.opacity;
+  }
+
+  testWidgets('a staged element is held back, then arrives', (tester) async {
+    await tester.pumpWidget(harness(
+      plan: const MotionPlan(
+        preset: MotionPreset.progressiva,
+        pace: MotionPace.normal,
+      ),
+    ));
+
+    // Nothing has run yet: both elements start hidden, so a slide never
+    // flashes its finished state before building.
+    expect(opacityOf(tester, 'first'), 0);
+    expect(opacityOf(tester, 'second'), 0);
+
+    // A zero pump lets each element's scheduled start resolve; the entrances
+    // themselves have not run yet.
+    await tester.pump(Duration.zero);
+
+    // The first element's own entrance is 300 × 1.6 = 480 ms. The second is
+    // still on its way in, because it did not start until 248 ms in.
+    // Thresholds rather than exact 1s: the assertion is about which element
+    // has arrived and which has not, and pinning it to a frame boundary would
+    // make it fail on rounding rather than on behaviour.
+    await tester.pump(const Duration(milliseconds: 480));
+    expect(opacityOf(tester, 'first'), greaterThan(0.95));
+    expect(opacityOf(tester, 'second'), lessThan(0.95));
+
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(opacityOf(tester, 'second'), greaterThan(0.95));
+  });
+
+  testWidgets('nenhuma renders the slide whole, with no Opacity at all',
+      (tester) async {
+    await tester.pumpWidget(harness(
+      plan: const MotionPlan(
+        preset: MotionPreset.nenhuma,
+        pace: MotionPace.normal,
+      ),
+    ));
+    expect(find.text('first'), findsOneWidget);
+    expect(
+      find.ancestor(of: find.text('first'), matching: find.byType(Opacity)),
+      findsNothing,
+    );
+  });
+
+  testWidgets('reduce motion delivers every slide whole and still',
+      (tester) async {
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(disableAnimations: true),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: MotionScope(
+            plan: const MotionPlan(
+              preset: MotionPreset.progressiva,
+              pace: MotionPace.normal,
+            ),
+            playing: true,
+            child: Column(children: staged([const Text('first')])),
+          ),
+        ),
+      ),
+    );
+    // The cheat sheet promises this in both languages. Without it the promise
+    // is only kept on the web.
+    expect(find.text('first'), findsOneWidget);
+    expect(
+      find.ancestor(of: find.text('first'), matching: find.byType(Opacity)),
+      findsNothing,
+    );
   });
 }
