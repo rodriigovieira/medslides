@@ -8,12 +8,25 @@ const STYLE_SUFFIX =
  * Blocks prompts that would produce something a viewer could mistake for real
  * clinical evidence. The system prompt already forbids these, but a generated
  * "CT scan" reaching a slide is the one failure mode worth defending twice.
+ *
+ * Scoped to imagery that reads as *diagnostic*. Generic words like "chart" or
+ * "diagram" are deliberately absent: every prompt ends with "no charts, no
+ * diagrams", and a blurred clipboard on a desk is atmosphere, not evidence.
  */
 const FORBIDDEN =
-  /\b(x-?ray|radiograph|ct scan|mri|ultrasound|echocardiogram|ecg|ekg|histolog|biopsy|pathology slide|microscop|lesion|wound|rash|tumor|autopsy|cadaver|dissection|chart|graph|diagram|scan of)\b/i;
+  /\b(x-?rays?|radiographs?|ct scans?|mri|ultrasounds?|echocardiograms?|ecgs?|ekgs?|histolog\w*|biops\w+|pathology slides?|microscop\w*|lesions?|wounds?|rashes|tumou?rs?|autops\w+|cadavers?|dissection|surgical site|blood smear)\b/i;
+
+/**
+ * Negations ("no lesions", "without wounds") describe what the image must NOT
+ * contain, so they must not trip the filter — otherwise the model's own safety
+ * phrasing blocks its own prompt.
+ */
+function stripNegations(prompt: string): string {
+  return prompt.replace(/\b(?:no|without|free of)\s+[\w-]+/gi, " ");
+}
 
 export function isSafeImagePrompt(prompt: string): boolean {
-  return !FORBIDDEN.test(prompt);
+  return !FORBIDDEN.test(stripNegations(prompt));
 }
 
 export type GeneratedImage = { bytes: ArrayBuffer; contentType: string };

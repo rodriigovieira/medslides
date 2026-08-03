@@ -8,7 +8,7 @@ import { sanitizeSlides, slidesNeedingImages } from "../src/lib/deck";
 import type { Slide } from "../src/lib/deck";
 import { parsePartialDeck } from "../src/lib/partial";
 import { generateDeckText } from "./lib/ai";
-import { generateImage } from "./lib/images";
+import { generateImage, isSafeImagePrompt } from "./lib/images";
 
 /** Don't write to the deck more than this often while streaming. */
 const PROGRESS_INTERVAL_MS = 500;
@@ -87,6 +87,37 @@ export const run = internalAction({
       await ctx.runMutation(internal.decks.fail, { deckId, error: message });
       throw error;
     }
+  },
+});
+
+/**
+ * Ops helper: exercises the image path end to end and returns what happened.
+ * Image failures are deliberately non-fatal in `run`, which makes them
+ * invisible — this is how you find out why a deck came back without art.
+ *   npx convex run --prod generate:diagnoseImage '{}'
+ */
+export const diagnoseImage = internalAction({
+  args: { prompt: v.optional(v.string()) },
+  handler: async (ctx, { prompt }) => {
+    const test =
+      prompt ?? "empty hospital corridor at night, cool light, editorial";
+    const steps: string[] = [];
+    steps.push(`FAL_KEY presente: ${Boolean(process.env.FAL_KEY)}`);
+    steps.push(`prompt seguro: ${isSafeImagePrompt(test)}`);
+
+    try {
+      const image = await generateImage(test);
+      steps.push(`imagem gerada: ${image ? `${image.bytes.byteLength} bytes` : "null"}`);
+      if (image) {
+        const storageId = await ctx.storage.store(
+          new Blob([image.bytes], { type: image.contentType }),
+        );
+        steps.push(`storageId: ${storageId}`);
+      }
+    } catch (error) {
+      steps.push(`ERRO: ${error instanceof Error ? error.stack : String(error)}`);
+    }
+    return steps;
   },
 });
 
