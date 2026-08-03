@@ -17,6 +17,7 @@ export function DeckWorkspace({
   expectedSlides,
   onEditSlide,
   chat,
+  editError,
   onPresent,
   onRestart,
 }: {
@@ -27,6 +28,8 @@ export function DeckWorkspace({
   expectedSlides?: number;
   /** Absent when the reader doesn't own the deck — then nothing is editable. */
   onEditSlide?: (slideIndex: number, patch: Parameters<EditHandler>[0]) => void;
+  /** Surfaced in the workspace — an edit that fails silently looks like a bug. */
+  editError?: string;
   /** Present only for the deck's owner; enables the AI editor. */
   chat?: { deckId: Id<"decks">; messages: ChatMessage[] };
   onPresent: () => void;
@@ -181,9 +184,9 @@ export function DeckWorkspace({
         </div>
       </header>
 
-      {exportError && (
+      {(exportError || editError) && (
         <p className="border-b border-signal/30 bg-signal/10 px-4 py-2 text-sm text-signal">
-          {exportError}
+          {exportError || editError}
         </p>
       )}
 

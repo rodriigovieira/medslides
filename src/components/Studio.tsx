@@ -21,6 +21,7 @@ export function Studio() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [presenting, setPresenting] = useState(false);
+  const [editError, setEditError] = useState("");
   const clientId = useSyncExternalStore(
     subscribeToClientId,
     clientIdSnapshot,
@@ -79,14 +80,16 @@ export function Studio() {
           chat={
             deckId ? { deckId, messages: record?.chat ?? [] } : undefined
           }
+          editError={editError}
           onEditSlide={(slideIndex, patch) => {
             if (!deckId) return;
+            setEditError("");
             void editSlide({
               deckId,
               slideIndex,
               clientId: getClientId(),
               patch,
-            }).catch((err) => setError(readableError(err)));
+            }).catch((err) => setEditError(readableError(err)));
           }}
           onPresent={() => setPresenting(true)}
           onRestart={restart}
