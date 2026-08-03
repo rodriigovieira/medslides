@@ -125,8 +125,11 @@ Operações:
   ("um médico idoso explicando um exame para a família numa enfermaria vazia").
   Na dúvida entre as duas, use \`imagem\`. \`estilo\` escolhe entre \`foto\`
   (padrão) e \`ilustracao\` (esquema científico em fundo branco — anticorpo,
-  coração, receptor, célula). \`altaQualidade: true\` só se pedirem qualidade
-  máxima — é mais caro e mais lento.
+  coração, receptor, célula). **\`ilustracao\` só em \`capa\`, \`secao\`,
+  \`topicos\`, \`destaque\` e \`encerramento\`** — ela ocupa um painel lateral, e
+  diagrama e \`comparacao\` usam a largura toda; nesses, use \`foto\`.
+  \`altaQualidade: true\` só se pedirem qualidade máxima — é mais caro e mais
+  lento.
   \`imagePrompt\` é uma descrição **em inglês**, uma ou duas frases, do que
   aparece na cena. Escolha o registro em \`estilo\`:
   - \`foto\` (padrão) — fotografia de ambiente: sujeito, cenário, luz,
@@ -203,6 +206,9 @@ type Op = {
   hub?: string;
   outcome?: string;
   nos?: Array<{ heading?: string; body?: string }>;
+  imagePrompt?: string;
+  estilo?: string;
+  altaQualidade?: boolean;
 };
 
 /** What the deck is still fetching, so the reply doesn't claim it's finished. */
@@ -278,6 +284,24 @@ export const send = action({
         if (Array.isArray(op.nos) && op.nos.length > 0) {
           op.nos = await completeNodeBodies(op.titulo ?? "", op.nos);
         }
+      }
+
+      // Illustration onto a diagram: dropped before it is paid for, and said
+      // out loud, rather than applied into a slide it cannot fit.
+      const refused: number[] = [];
+      const kept = ops.filter((op) => {
+        if (op.tipo !== "gerarImagem" || op.estilo !== "ilustracao") return true;
+        const target = (deck.slides as Slide[])[(op.slide ?? 0) - 1];
+        if (target && !illustrationFits(target.layout)) {
+          refused.push(op.slide ?? 0);
+          return false;
+        }
+        return true;
+      });
+      if (refused.length > 0) {
+        ops.length = 0;
+        ops.push(...kept);
+        reply = `${reply} ${DIAGRAM_ART_REFUSAL}`;
       }
 
       if (ops.length > 0) {
@@ -436,6 +460,22 @@ campos que mudam. Campo omitido = campo preservado.
 - Se o pedido não fizer sentido para este slide, não invente: devolva só
   \`resposta\` explicando.`;
 
+/**
+ * An illustration takes the side panel, and a diagram needs the whole slide.
+ *
+ * Asked for an antibody on a `mecanismo` slide, the art came out perfectly and
+ * the diagram collapsed into the remaining third — boxes off the bottom edge,
+ * over the citations. Refused here rather than in the renderer, because the
+ * refusal has to happen before the image is paid for, and because "your slide is
+ * already a diagram" is a better answer than a squeezed slide.
+ */
+function illustrationFits(layout: string): boolean {
+  return !["mecanismo", "fluxo", "cards", "comparacao"].includes(layout);
+}
+
+const DIAGRAM_ART_REFUSAL =
+  "Este slide já é um diagrama e ocupa a largura toda — uma ilustração ao lado não caberia. Posso gerar uma foto de ambiente para o fundo dele, ou você converte o slide para tópicos antes.";
+
 const BODIES_SCHEMA = {
   type: "OBJECT",
   properties: {
@@ -546,6 +586,10 @@ export const editOne = action({
     }
     const aiPrompt =
       typeof patch.imagePrompt === "string" ? patch.imagePrompt.trim() : "";
+    const aiStyle = patch.estilo === "ilustracao" ? "ilustracao" : "foto";
+    if (aiPrompt && aiStyle === "ilustracao" && !illustrationFits(slide.layout)) {
+      return DIAGRAM_ART_REFUSAL;
+    }
     if (aiPrompt) {
       // Reserve before generating, and let the failure surface here rather than
       // as a promise the scheduled job quietly never keeps.
@@ -571,7 +615,7 @@ export const editOne = action({
         slideIndex,
         prompt: aiPrompt,
         quality: patch.altaQualidade === true ? "alta" : "rapida",
-        style: patch.estilo === "ilustracao" ? "ilustracao" : "foto",
+        style: aiStyle,
       });
       return `${reply} Gerando a imagem com IA — leva alguns segundos.`;
     }
