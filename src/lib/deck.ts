@@ -249,6 +249,13 @@ export function sanitizeSlide(value: unknown): Slide | null {
  */
 export const MAX_IMAGES_PER_DECK = 7;
 
+/**
+ * Credit line written on any slide whose picture was generated rather than
+ * photographed. It is the marker the renderer and the exporter both key off, so
+ * it lives here rather than in the Node-only action that writes it.
+ */
+export const AI_CREDIT = "Imagem gerada por IA";
+
 export function slidesNeedingImages(slides: Slide[]): number[] {
   const wants = (index: number) =>
     Boolean(slides[index].imageQuery) && !slides[index].imageUrl;

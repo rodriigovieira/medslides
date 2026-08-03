@@ -20,13 +20,15 @@ type Op = {
   imageQuery?: string;
   citationQuery?: string;
   removerImagem?: boolean;
+  imagePrompt?: string;
+  altaQualidade?: boolean;
   para?: number;
 };
 
 export const applyOps = internalMutation({
   args: { deckId: v.id("decks"), ops: v.string() },
   handler: async (ctx, { deckId, ops: raw }) => {
-    const empty = { applied: 0, refSlides: [], imageSlides: [] };
+    const empty = { applied: 0, refSlides: [], imageSlides: [], aiImages: [] };
     const deck = await ctx.db.get(deckId);
     if (!deck) return empty;
 
@@ -108,6 +110,28 @@ export const applyOps = internalMutation({
       applied++;
     }
 
+    // Generated art is only *requested* here. The call costs money, so the
+    // budget is reserved by the action before anything is scheduled, and this
+    // mutation just says which slides asked and for what.
+    const aiRequests: Array<{ node: object; prompt: string; alta: boolean }> = [];
+    for (const op of ops.filter((o) => o.tipo === "gerarImagem")) {
+      const i = index(op);
+      const prompt = op.imagePrompt?.trim();
+      if (i < 0 || i >= slides.length || !prompt) continue;
+      // Clear the current photo so the slide visibly enters the "generating"
+      // state instead of sitting on the old picture for ten seconds.
+      const next = {
+        ...slides[i],
+        imageStorageId: undefined,
+        imageUrl: undefined,
+        imageCredit: undefined,
+        imageSource: undefined,
+      };
+      slides[i] = next;
+      aiRequests.push({ node: next, prompt, alta: op.altaQualidade === true });
+      applied++;
+    }
+
     // Then removals, highest index first so earlier indexes stay valid.
     for (const op of ops
       .filter((o) => o.tipo === "remover")
@@ -179,12 +203,26 @@ export const applyOps = internalMutation({
       applied,
       refSlides: positions(needsRefs),
       imageSlides: positions(needsPhoto),
+      aiImages: aiRequests
+        .map((r) => ({
+          slideIndex: slides.indexOf(r.node as (typeof slides)[number]),
+          prompt: r.prompt,
+          alta: r.alta,
+        }))
+        .filter((r) => r.slideIndex >= 0),
     };
   },
   returns: v.object({
     applied: v.number(),
     refSlides: v.array(v.number()),
     imageSlides: v.array(v.number()),
+    aiImages: v.array(
+      v.object({
+        slideIndex: v.number(),
+        prompt: v.string(),
+        alta: v.boolean(),
+      }),
+    ),
   }),
 });
 
@@ -249,7 +287,9 @@ export const applySlidePatch = internalMutation({
     // is carried over untouched — the model never sees the stored file, and an
     // "encurtar este slide" that dropped the photo would be a silent deletion.
     const wantsNewPhoto = Boolean(p.imageQuery?.trim());
-    const dropsPhoto = p.removerImagem === true;
+    // A generated image also clears what's there, so the slide shows that
+    // something is happening rather than the old picture for ten seconds.
+    const dropsPhoto = p.removerImagem === true || Boolean(p.imagePrompt?.trim());
     const photo =
       wantsNewPhoto || dropsPhoto
         ? {

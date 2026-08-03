@@ -13,6 +13,12 @@ const DAILY_LIMIT_PER_CLIENT = 15;
 const DAILY_LIMIT_GLOBAL = 400;
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 
+// Generated art is the only paid-per-use thing in the product, so its budget is
+// much tighter than the deck budget and is deliberately small enough that the
+// worst case is an amount nobody has to think about.
+const AI_IMAGES_PER_CLIENT = 10;
+const AI_IMAGES_GLOBAL = 120;
+
 export const get = query({
   args: { deckId: v.id("decks") },
   handler: async (ctx, { deckId }) => {
@@ -104,6 +110,36 @@ export const start = mutation({
     });
 
     return deckId;
+  },
+});
+
+/**
+ * Reserves one AI-generated image against both budgets.
+ *
+ * Separate from the deck quota because it is the only thing here that costs real
+ * money per use, and it is reserved *before* the model is called — a limit
+ * checked afterwards is a limit that has already been exceeded. Generated art is
+ * always opt-in, so a user who never asks for it can never spend anything.
+ */
+export const reserveAiImage = internalMutation({
+  args: { clientId: v.string() },
+  handler: async (ctx, { clientId }) => {
+    await consume(ctx, "ai-image:global", AI_IMAGES_GLOBAL, "GLOBAL_LIMIT");
+    await consume(ctx, `ai-image:${clientId}`, AI_IMAGES_PER_CLIENT, "CLIENT_LIMIT");
+  },
+});
+
+/** Remaining generated-image budget, so the UI can say so before you ask. */
+export const aiImageBudget = query({
+  args: { clientId: v.string() },
+  handler: async (ctx, { clientId }) => {
+    const row = await ctx.db
+      .query("usage")
+      .withIndex("by_scope", (q) => q.eq("scope", `ai-image:${clientId}`))
+      .unique();
+    const used =
+      row && Date.now() - row.windowStart <= WINDOW_MS ? row.count : 0;
+    return { used, limit: AI_IMAGES_PER_CLIENT };
   },
 });
 

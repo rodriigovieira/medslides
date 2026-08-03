@@ -36,6 +36,11 @@ const SHORTCUTS = [
     instruction:
       "Troque a foto deste slide por outra que combine com o conteúdo. Se ele ainda não tem foto, escolha uma.",
   },
+  {
+    label: "Gerar imagem ✦",
+    instruction:
+      "Gere uma imagem com IA para este slide, que ilustre o conteúdo dele.",
+  },
 ];
 
 export function SlidePrompt({

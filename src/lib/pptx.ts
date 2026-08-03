@@ -1,5 +1,6 @@
 import type PptxGenJS from "pptxgenjs";
 import {
+  AI_CREDIT,
   DIAGRAM_LAYOUTS,
   citationLine,
   type Deck,
@@ -131,8 +132,21 @@ export async function exportPptx(deck: Deck) {
       );
     }
 
-    // CC0 requires no attribution, so the credit rides in the speaker notes
-    // rather than cluttering the slide.
+    // A stock photo is CC0, so its credit needs no attribution and rides in the
+    // notes. A generated image is different in kind: the audience is looking at
+    // something invented, and the deck leaves the room without us, so the label
+    // has to be on the slide it belongs to.
+    if (slide.imageCredit === AI_CREDIT) {
+      s.addText(`✦ ${AI_CREDIT}`, {
+        x: MARGIN,
+        y: H - 0.28,
+        w: 3,
+        h: 0.22,
+        fontSize: 6.5,
+        color: dark ? PAPER_FAINT : INK_FAINT,
+      });
+    }
+
     const notes = [slide.notes, slide.imageCredit].filter(Boolean).join("\n\n");
     if (notes) s.addNotes(notes);
   });

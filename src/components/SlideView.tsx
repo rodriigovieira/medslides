@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AI_CREDIT,
   DIAGRAM_LAYOUTS,
   citationLine,
   type Reference,
@@ -175,6 +176,16 @@ function Footer({
           className={`absolute bottom-[3.2cqw] ${numberRight} text-[1.45cqw] tabular-nums ${faint}`}
         >
           {index + 1} / {total}
+        </div>
+      )}
+      {/* Generated art is labelled on the slide itself, not just in the notes.
+          An invented image presented as a photograph to a room of doctors is a
+          different thing from one they can see was made by a model. */}
+      {slide.imageCredit === AI_CREDIT && (
+        <div
+          className={`absolute bottom-[0.9cqw] left-[7cqw] text-[1.05cqw] ${faint}`}
+        >
+          ✦ {AI_CREDIT}
         </div>
       )}
     </>

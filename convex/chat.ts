@@ -26,7 +26,14 @@ const OPS_SCHEMA = {
         properties: {
           tipo: {
             type: "STRING",
-            enum: ["editar", "adicionar", "remover", "imagem", "mover"],
+            enum: [
+              "editar",
+              "adicionar",
+              "remover",
+              "imagem",
+              "mover",
+              "gerarImagem",
+            ],
           },
           slide: { type: "NUMBER" },
           layout: {
@@ -63,6 +70,8 @@ const OPS_SCHEMA = {
           imageQuery: { type: "STRING" },
           citationQuery: { type: "STRING" },
           para: { type: "NUMBER" },
+          imagePrompt: { type: "STRING" },
+          altaQualidade: { type: "BOOLEAN" },
         },
         required: ["tipo"],
         propertyOrdering: [
@@ -79,6 +88,8 @@ const OPS_SCHEMA = {
           "imageQuery",
           "citationQuery",
           "para",
+          "imagePrompt",
+          "altaQualidade",
         ],
       },
     },
@@ -102,8 +113,20 @@ Operações:
 - \`remover\` — só \`slide\`.
 - \`mover\` — muda a ordem. \`slide\` é a posição atual e \`para\` é a posição
   final, ambas na numeração exibida.
-- \`imagem\` — troca a foto de um slide. Precisa de \`slide\` e \`imageQuery\`. Use
-  também quando pedirem para *adicionar* foto a um slide que não tem.
+- \`imagem\` — troca a foto de um slide por outra do **banco de fotos reais**.
+  Precisa de \`slide\` e \`imageQuery\`. É o padrão: é grátis e é uma foto de
+  verdade. Use também quando pedirem para *adicionar* foto a um slide que não
+  tem.
+- \`gerarImagem\` — **cria** uma imagem com IA para o slide. Precisa de \`slide\`
+  e \`imagePrompt\`. Use **só** quando a pessoa pedir imagem gerada/criada por IA,
+  ou descrever uma cena específica que uma busca em banco de fotos não acharia
+  ("um médico idoso explicando um exame para a família numa enfermaria vazia").
+  Na dúvida entre as duas, use \`imagem\`. \`altaQualidade: true\` só se pedirem
+  qualidade máxima — é mais caro e mais lento.
+  \`imagePrompt\` é uma descrição **em inglês**, uma ou duas frases, do que
+  aparece na cena: sujeito, ambiente, luz, enquadramento. Não peça texto,
+  logotipo, gráfico nem imagem de exame — nada que possa ser lido como evidência
+  de um paciente real.
 
 \`citationQuery\` e \`imageQuery\` não vão para a tela: são buscas que outros
 sistemas executam.
@@ -251,9 +274,39 @@ export const send = action({
         });
         if (result.applied === 0) {
           reply = `${reply} (nenhuma mudança pôde ser aplicada)`;
-        } else if (
-          result.refSlides.length > 0 ||
-          result.imageSlides.length > 0
+        }
+
+        // Generated art, one budget reservation per image, before any call is
+        // made. A user who runs out mid-request gets the ones that fit and is
+        // told plainly — not a silent partial result.
+        let generated = 0;
+        let blocked = "";
+        for (const request of result.aiImages) {
+          try {
+            await ctx.runMutation(internal.decks.reserveAiImage, { clientId });
+          } catch (error) {
+            blocked =
+              error instanceof Error
+                ? error.message
+                : "Limite de imagens geradas atingido.";
+            break;
+          }
+          await ctx.scheduler.runAfter(0, internal.aiImage.run, {
+            deckId,
+            slideIndex: request.slideIndex,
+            prompt: request.prompt,
+            quality: request.alta ? "alta" : "rapida",
+          });
+          generated++;
+        }
+        if (generated > 0) {
+          reply = `${reply} Gerando ${generated === 1 ? "a imagem" : `${generated} imagens`} com IA — leva alguns segundos.`;
+        }
+        if (blocked) reply = `${reply} ${blocked}`;
+
+        if (
+          result.applied > 0 &&
+          (result.refSlides.length > 0 || result.imageSlides.length > 0)
         ) {
           // Scheduled, not awaited: PubMed and the photo search together take
           // longer than anyone will watch a chat spinner, and the edited slides
@@ -315,6 +368,8 @@ const ONE_SCHEMA = {
     notas: { type: "STRING" },
     imageQuery: { type: "STRING" },
     removerImagem: { type: "BOOLEAN" },
+    imagePrompt: { type: "STRING" },
+    altaQualidade: { type: "BOOLEAN" },
   },
   required: ["resposta"],
   propertyOrdering: [
@@ -329,6 +384,8 @@ const ONE_SCHEMA = {
     "notas",
     "imageQuery",
     "removerImagem",
+    "imagePrompt",
+    "altaQualidade",
   ],
 } as const;
 
@@ -354,6 +411,12 @@ campos que mudam. Campo omitido = campo preservado.
   clínico, exame de imagem, lesão ou peça anatômica. **Qualquer layout aceita
   foto**, inclusive diagramas e comparação. Para tirar a foto, devolva
   \`removerImagem: true\`.
+- Imagem **gerada por IA**: quando pedirem para *criar/gerar* uma imagem, ou
+  descreverem uma cena específica que uma busca em banco de fotos não acharia,
+  devolva \`imagePrompt\` em vez de \`imageQuery\` — uma ou duas frases **em
+  inglês** descrevendo sujeito, ambiente, luz e enquadramento. Na dúvida entre as
+  duas, prefira \`imageQuery\` (foto real, sem custo). \`altaQualidade: true\` só
+  se pedirem qualidade máxima.
 - Se o pedido não fizer sentido para este slide, não invente: devolva só
   \`resposta\` explicando.`;
 
@@ -465,12 +528,36 @@ export const editOne = action({
         patch.nos as Node[],
       );
     }
+    const aiPrompt =
+      typeof patch.imagePrompt === "string" ? patch.imagePrompt.trim() : "";
+    if (aiPrompt) {
+      // Reserve before generating, and let the failure surface here rather than
+      // as a promise the scheduled job quietly never keeps.
+      try {
+        await ctx.runMutation(internal.decks.reserveAiImage, { clientId });
+      } catch (error) {
+        return error instanceof Error
+          ? error.message
+          : "Limite de imagens geradas atingido.";
+      }
+    }
+
     const applied = await ctx.runMutation(internal.chatOps.applySlidePatch, {
       deckId,
       slideIndex,
       patch: JSON.stringify(patch),
     });
     if (!applied.changed) return `${reply} (nada mudou)`;
+
+    if (aiPrompt) {
+      await ctx.scheduler.runAfter(0, internal.aiImage.run, {
+        deckId,
+        slideIndex,
+        prompt: aiPrompt,
+        quality: patch.altaQualidade === true ? "alta" : "rapida",
+      });
+      return `${reply} Gerando a imagem com IA — leva alguns segundos.`;
+    }
 
     if (applied.needsPhoto) {
       await ctx.scheduler.runAfter(0, internal.generate.enrich, {
