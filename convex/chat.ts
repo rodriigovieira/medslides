@@ -3,9 +3,10 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action } from "./_generated/server";
-import { type Slide } from "../src/lib/deck";
+import { MOTION_PACES, MOTION_PRESETS, type Slide } from "../src/lib/deck";
 import { TruncatedJsonError, generateStructured } from "./lib/ai";
 import { refuseImagePrompt } from "./lib/imagen";
+
 import { completeObjectsIn } from "../src/lib/partial";
 
 /**
@@ -34,6 +35,7 @@ const OPS_SCHEMA = {
               "imagem",
               "mover",
               "gerarImagem",
+              "animar",
             ],
           },
           slide: { type: "NUMBER" },
@@ -74,6 +76,8 @@ const OPS_SCHEMA = {
           imagePrompt: { type: "STRING" },
           estilo: { type: "STRING", enum: ["foto", "ilustracao"] },
           altaQualidade: { type: "BOOLEAN" },
+          animacao: { type: "STRING", enum: [...MOTION_PRESETS] },
+          ritmo: { type: "STRING", enum: [...MOTION_PACES] },
         },
         required: ["tipo"],
         propertyOrdering: [
@@ -93,6 +97,8 @@ const OPS_SCHEMA = {
           "imagePrompt",
           "estilo",
           "altaQualidade",
+          "animacao",
+          "ritmo",
         ],
       },
     },
@@ -151,6 +157,46 @@ Operações:
   química, em nenhum estilo: inventadas, essas imagens são lidas como dado.
   **Célula tumoral, receptor, órgão e lesão podem ser desenhados como esquema**
   — é o vocabulário normal de um congresso — mas nunca como \`foto\`.
+- \`animar\` — define **como o slide se move na apresentação**. Precisa de
+  \`slide\` e \`animacao\`; \`ritmo\` é opcional.
+  **Toda mudança de animação é \`animar\`**, inclusive tirar. Para deixar o
+  slide parado, mande \`animar\` com \`animacao: "nenhuma"\` — nunca \`editar\`
+  (que ignora animação) e **nunca \`remover\`** (que apaga o slide inteiro).
+  A animação é só de tela: o \`.pptx\` exportado não muda, e quem tiver
+  "reduzir movimento" ligado no sistema vê o slide inteiro, parado. Nunca
+  prometa animação no PowerPoint.
+  **Uma imagem gerada por IA pode ser animada** — pode mandar \`gerarImagem\` e
+  \`animar\` no mesmo pedido, para o mesmo slide. A imagem chega alguns segundos
+  depois; a animação já fica gravada e vale a partir da próxima vez que o slide
+  aparecer.
+  \`animacao\` (escolha **pelo nome**, não invente outros):
+  - \`nenhuma\` — sem movimento. Use de propósito: numa apresentação boa a
+    maioria dos slides não se move, e o movimento fica nos que carregam o
+    argumento.
+  - \`suave\` — **o padrão**. Os elementos entram na ordem de leitura e o que se
+    repete do slide anterior viaja em vez de piscar. É o que todo slide já faz
+    sem você pedir nada.
+  - \`progressiva\` — os itens entram um a um, bem mais devagar. Para um slide
+    de tópicos em que cada linha é um passo do raciocínio.
+  - \`heroi\` — o conceito central aparece grande no meio, segura, e depois vai
+    para a esquerda encolhendo enquanto as vias chegam à direita. **Só em
+    \`mecanismo\`, e só se o slide tiver \`hub\`.**
+  - \`numero\` — o número cresce até o tamanho final. **Só em \`destaque\` com
+    número.**
+  - \`etapas\` — as etapas aparecem uma de cada vez, na ordem. **Só em
+    \`fluxo\`.**
+  - \`transformar\` — o que existe nos dois slides se transforma devagar de um
+    para o outro, e o resto do slide espera. Para uma figura que continua do
+    slide anterior. Melhor em **slides consecutivos**: ponha em 2 ou 3 seguidos
+    para a figura atravessar a sequência.
+  - \`destacar\` — o slide entra normalmente e depois o elemento principal dá
+    uma pulsada.
+  \`ritmo\`: \`rapido\`, \`normal\` (padrão) ou \`solene\` (bem mais lento, no
+  compasso de congresso).
+  Se pedirem "anime tudo"/"anime a apresentação", mande uma operação \`animar\`
+  por slide, escolhendo o preset que **cabe em cada layout** — e deixe
+  \`nenhuma\` na maioria dos slides de apoio. Não use \`animar\` quando ninguém
+  falou de animação, movimento, transição ou ritmo.
 
 \`citationQuery\` e \`imageQuery\` não vão para a tela: são buscas que outros
 sistemas executam.
@@ -199,6 +245,12 @@ function describeDeck(slides: Slide[]): string {
       }
       if (s.outcome) parts.push(`   desfecho: ${s.outcome}`);
       if (s.stat) parts.push(`   numero: ${s.stat.value} — ${s.stat.label}`);
+      // Shown so the model can answer "quais slides estão animados?" and so it
+      // doesn't re-apply a preset a slide already has.
+      if (s.animation?.preset || s.animation?.pace) {
+        const pace = s.animation.pace ? `, ritmo ${s.animation.pace}` : "";
+        parts.push(`   animacao: ${s.animation.preset ?? "suave"}${pace}`);
+      }
       return parts.join("\n");
     })
     .join("\n");
@@ -218,7 +270,79 @@ type Op = {
   imagePrompt?: string;
   estilo?: string;
   altaQualidade?: boolean;
+  animacao?: string;
+  ritmo?: string;
 };
+
+/**
+ * Presets that only work on one shape of slide, and what they need.
+ *
+ * Checked here, synchronously, before anything is written or promised. A preset
+ * applied to a layout that has nothing for it to move is not a small cosmetic
+ * miss: the slide would present *identically* to before while the reply said it
+ * had been animated. That exact shape of lie — reporting a change to a layout
+ * that cannot render it — is the most repeated failure this product has had, so
+ * the mismatch is refused out loud and the slide is left alone.
+ */
+const PRESET_NEEDS: Record<
+  string,
+  { ok: (s: Slide) => boolean; why: string }
+> = {
+  heroi: {
+    ok: (s) => s.layout === "mecanismo" && Boolean(s.hub),
+    why: "`heroi` precisa de um slide `mecanismo` com conceito central",
+  },
+  numero: {
+    ok: (s) => s.layout === "destaque" && Boolean(s.stat),
+    why: "`numero` precisa de um slide `destaque` com número",
+  },
+  etapas: {
+    ok: (s) => s.layout === "fluxo",
+    why: "`etapas` precisa de um slide `fluxo`",
+  },
+};
+
+/** Refusal for one `animar` op, or null if it will actually do something. */
+function checkAnimation(preset: string, slide: Slide | undefined, n: number): string | null {
+  if (!slide) return `O slide ${n} não existe.`;
+  const need = PRESET_NEEDS[preset];
+  if (!need || need.ok(slide)) return null;
+  return `No slide ${n} não dá: ${need.why}, e ele é \`${slide.layout}\`.`;
+}
+
+/**
+ * How many slides can be restyled without asking first.
+ *
+ * One slide just happens — stopping to confirm a single change would be
+ * insufferable. Beyond three the request is "anime a apresentação", which
+ * changes how the whole talk plays, so it gets described and approved. The
+ * threshold is on `animar` ops specifically: animation is the only operation
+ * where one sentence plausibly means every slide.
+ */
+const ANIMATION_CONFIRM_OVER = 3;
+
+/**
+ * A bare "yes" or "no" to a parked plan.
+ *
+ * Deliberately narrow, and matched against the *whole* message: anything longer
+ * is treated as a fresh request and the plan is dropped. A loose match would let
+ * "pode trocar a foto do slide 3" apply a whole-deck restyle the user had
+ * already moved on from, which is worse than making them type "sim" twice.
+ */
+const YES =
+  /^(sim|isso|ok|okay|claro|confirmo|confirmar|pode|pode ser|pode sim|manda|manda ver|aplica|aplicar|aplique|faz|faça|vai|beleza|blz|perfeito|isso mesmo|tá bom|ta bom|tudo bem|quero|por favor)[.!]*$/i;
+const NO = /^(n[aã]o|nao|cancela|cancelar|deixa|deixa pra l[aá]|esquece|melhor n[aã]o|n[aã]o quero)[.!]*$/i;
+
+/** `#3 numero · #7 transformar (solene)` — what the user is approving. */
+function describeAnimation(ops: Op[]): string {
+  return ops
+    .filter((o) => o.tipo === "animar" && o.animacao)
+    .map(
+      (o) =>
+        `#${o.slide} ${o.animacao}${o.ritmo && o.ritmo !== "normal" ? ` (${o.ritmo})` : ""}`,
+    )
+    .join(" · ");
+}
 
 /** What the deck is still fetching, so the reply doesn't claim it's finished. */
 function describePending({
@@ -258,6 +382,45 @@ export const send = action({
       text,
     });
 
+    // A parked plan is answered here, before the model is consulted at all.
+    //
+    // The plan is replayed exactly as it was described. Re-asking the model on
+    // "sim" would risk applying something other than what the user approved,
+    // which is the same class of dishonesty as claiming a change that never
+    // happened — the user agreed to a specific list, so that list is what runs.
+    const pending = deck.pendingOps;
+    if (pending) {
+      // Cleared whatever the answer is: a plan that survived an unrelated
+      // message would later be applied to a "sim" that meant something else.
+      await ctx.runMutation(internal.chatOps.setPendingOps, { deckId });
+      if (YES.test(text)) {
+        const result = await ctx.runMutation(internal.chatOps.applyOps, {
+          deckId,
+          ops: pending.ops,
+        });
+        const done =
+          result.applied > 0
+            ? `Feito. ${pending.summary}`
+            : "Nada mudou — a apresentação já estava assim.";
+        await ctx.runMutation(internal.chatOps.appendMessage, {
+          deckId,
+          role: "assistant",
+          text: done,
+        });
+        return done;
+      }
+      if (NO.test(text)) {
+        const kept = "Ok, deixei como estava.";
+        await ctx.runMutation(internal.chatOps.appendMessage, {
+          deckId,
+          role: "assistant",
+          text: kept,
+        });
+        return kept;
+      }
+      // Anything else is a new request; the plan is simply dropped.
+    }
+
     let reply = "Não consegui aplicar essa mudança.";
     try {
       const prompt = `Apresentação atual (${deck.slides.length} slides):\n\n${describeDeck(
@@ -295,6 +458,44 @@ export const send = action({
         }
       }
 
+      // Animation asked for on the wrong operation is moved onto the right one.
+      //
+      // Measured, not guessed: "tire a animação do slide 2" came back three
+      // times as `editar` carrying `animacao` instead of `animar`. `editar`
+      // ignores the field, so nothing changed while the reply said "Removi a
+      // animação do slide 2" — the exact failure this feature is supposed to be
+      // proof against. Tightening the prompt alone would leave it as a coin
+      // flip, so the shape is repaired here as well.
+      for (const op of ops) {
+        if (op.tipo === "animar" || op.tipo === "adicionar") continue;
+        if (!op.animacao?.trim() && !op.ritmo?.trim()) continue;
+        ops.push({
+          tipo: "animar",
+          slide: op.slide,
+          animacao: op.animacao,
+          ritmo: op.ritmo,
+        });
+        // The rest of the `editar` still applies — a request can legitimately
+        // change the title *and* the motion in one sentence.
+        delete op.animacao;
+        delete op.ritmo;
+      }
+
+      // Animation is validated against the real slide before anything is
+      // written and before the reply is composed, so a preset the layout cannot
+      // render is refused by name instead of reported as done.
+      const animationRefusals: string[] = [];
+      ops = ops.filter((op) => {
+        if (op.tipo !== "animar") return true;
+        const preset = op.animacao?.trim();
+        if (!preset) return false;
+        const n = op.slide ?? 0;
+        const problem = checkAnimation(preset, (deck.slides as Slide[])[n - 1], n);
+        if (!problem) return true;
+        animationRefusals.push(problem);
+        return false;
+      });
+
       // Illustration onto a diagram: dropped before it is paid for, and said
       // out loud, rather than applied into a slide it cannot fit.
       // An unsafe prompt is dropped before the budget is touched, and the
@@ -329,6 +530,33 @@ export const send = action({
       }
       if (refused) reply = `${reply} ${DIAGRAM_ART_REFUSAL}`;
       if (refusals.length > 0) reply = `${reply} ${refusals.join(' ')}`;
+      if (animationRefusals.length > 0) {
+        reply = `${reply} ${animationRefusals.join(" ")}`;
+      }
+
+      // Restyling most of a talk from one sentence gets described and approved
+      // rather than done. Nothing is written and nothing is scheduled, so the
+      // deck is untouched until the user says yes — which is the point: the
+      // alternative is a doctor discovering during the talk that every slide
+      // now moves.
+      const animCount = ops.filter((o) => o.tipo === "animar").length;
+      if (animCount > ANIMATION_CONFIRM_OVER) {
+        const summary = describeAnimation(ops);
+        await ctx.runMutation(internal.chatOps.setPendingOps, {
+          deckId,
+          plan: { ops: JSON.stringify(ops), summary },
+        });
+        const ask =
+          `Vou animar ${animCount} slides: ${summary}. ` +
+          `${animationRefusals.join(" ")}`.trim() +
+          " Confirma? (responda \"sim\" para aplicar)";
+        await ctx.runMutation(internal.chatOps.appendMessage, {
+          deckId,
+          role: "assistant",
+          text: ask,
+        });
+        return ask;
+      }
 
       if (ops.length > 0) {
         const result = await ctx.runMutation(internal.chatOps.applyOps, {
@@ -337,6 +565,14 @@ export const send = action({
         });
         if (result.applied === 0) {
           reply = `${reply} (nenhuma mudança pôde ser aplicada)`;
+        }
+
+        // Named per slide, not summarised as "animei os slides". The model's own
+        // `resposta` is a sentence it wrote before any of this ran; this line is
+        // the record of what was actually written to the deck.
+        if (result.applied > 0) {
+          const changed = describeAnimation(ops);
+          if (changed) reply = `${reply} Animação: ${changed}.`;
         }
 
         // Generated art, one budget reservation per image, before any call is
@@ -435,6 +671,8 @@ const ONE_SCHEMA = {
     imagePrompt: { type: "STRING" },
     estilo: { type: "STRING", enum: ["foto", "ilustracao"] },
     altaQualidade: { type: "BOOLEAN" },
+    animacao: { type: "STRING", enum: [...MOTION_PRESETS] },
+    ritmo: { type: "STRING", enum: [...MOTION_PACES] },
   },
   required: ["resposta"],
   propertyOrdering: [
@@ -452,10 +690,12 @@ const ONE_SCHEMA = {
     "imagePrompt",
     "estilo",
     "altaQualidade",
+    "animacao",
+    "ritmo",
   ],
 } as const;
 
-const ONE_SYSTEM = `Você reescreve **um único slide** de uma apresentação médica.
+const ONE_SYSTEM =`Você reescreve **um único slide** de uma apresentação médica.
 
 Devolva \`resposta\` (uma frase curta em português dizendo o que mudou) e só os
 campos que mudam. Campo omitido = campo preservado.
@@ -483,6 +723,21 @@ campos que mudam. Campo omitido = campo preservado.
   inglês** descrevendo sujeito, ambiente, luz e enquadramento. Na dúvida entre as
   duas, prefira \`imageQuery\` (foto real, sem custo). \`altaQualidade: true\` só
   se pedirem qualidade máxima.
+- **Animação** (só de tela — o \`.pptx\` exportado não muda): quando pedirem para
+  animar, mudar o movimento, a transição ou o ritmo deste slide, devolva
+  \`animacao\` e, se pedirem, \`ritmo\`.
+  \`animacao\`: \`nenhuma\` (parado), \`suave\` (padrão — entram na ordem de
+  leitura), \`progressiva\` (um item de cada vez, devagar), \`heroi\` (**só
+  \`mecanismo\` com conceito central**: ele abre grande no meio e vai para a
+  esquerda enquanto as vias chegam), \`numero\` (**só \`destaque\` com número**:
+  o número cresce), \`etapas\` (**só \`fluxo\`**: uma etapa de cada vez),
+  \`transformar\` (o que se repete do slide anterior se transforma devagar) ou
+  \`destacar\` (entra normal e depois o elemento principal pulsa).
+  \`ritmo\`: \`rapido\`, \`normal\` (padrão) ou \`solene\`.
+  Se o preset pedido não couber neste layout, **não escolha outro no lugar sem
+  dizer**: devolva o que couber e explique na \`resposta\`.
+  Uma imagem gerada por IA pode ser animada — \`imagePrompt\` e \`animacao\`
+  podem vir juntos.
 - Se o pedido não fizer sentido para este slide, não invente: devolva só
   \`resposta\` explicando.`;
 
@@ -598,12 +853,24 @@ export const editOne = action({
       ONE_SCHEMA,
     )) as Record<string, unknown>;
 
-    const reply =
+    let reply =
       typeof result.resposta === "string" && result.resposta.trim()
         ? result.resposta.trim()
         : "Pronto.";
 
     const { resposta: _ignored, ...patch } = result;
+
+    // Same rule as the deck-wide editor, and for the same reason: a preset this
+    // layout cannot render would present identically to before while the reply
+    // said the slide was animated. Refused before anything is written.
+    if (typeof patch.animacao === "string" && patch.animacao.trim()) {
+      const problem = checkAnimation(
+        patch.animacao.trim(),
+        slide,
+        slideIndex + 1,
+      );
+      if (problem) return problem;
+    }
     if (Array.isArray(patch.nos) && patch.nos.length > 0) {
       patch.nos = await completeNodeBodies(
         typeof patch.titulo === "string" ? patch.titulo : slide.title,
@@ -642,6 +909,17 @@ export const editOne = action({
       patch: JSON.stringify(patch),
     });
     if (!applied.changed) return `${reply} (nada mudou)`;
+
+    // Named, not implied. The model's `resposta` was written before the patch
+    // ran; this is what the slide now carries.
+    const preset =
+      typeof patch.animacao === "string" ? patch.animacao.trim() : "";
+    const pace = typeof patch.ritmo === "string" ? patch.ritmo.trim() : "";
+    if (preset || pace) {
+      reply = `${reply} Animação: ${preset || "sem mudança"}${
+        pace && pace !== "normal" ? ` (${pace})` : ""
+      }.`;
+    }
 
     if (aiPrompt) {
       await ctx.scheduler.runAfter(0, internal.aiImage.run, {

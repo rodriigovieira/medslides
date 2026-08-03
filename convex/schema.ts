@@ -62,6 +62,24 @@ export const slideValidator = v.object({
   // Stored in Convex file storage; `decks.get` resolves it to a URL so the
   // client and the .pptx exporter never deal with storage ids.
   imageStorageId: v.optional(v.id("_storage")),
+  /**
+   * Screen-only motion for this slide. `preset` names one of `MOTION_PRESETS`
+   * in `src/lib/motion.ts`; `pace` is the tempo on top of it.
+   *
+   * **Both are `v.string()` on purpose, not `v.union(v.literal(...))`.** A
+   * literal union would mean every new preset needs a schema push, and — worse —
+   * that a deck saved by a deployment which already has the new preset fails to
+   * validate against one that doesn't. Removing a query argument took production
+   * down twice for exactly this shape of reason; a presentation setting is not
+   * worth a third. The renderer validates instead, and falls back to the default
+   * build for a name it doesn't recognise.
+   */
+  animation: v.optional(
+    v.object({
+      preset: v.optional(v.string()),
+      pace: v.optional(v.string()),
+    }),
+  ),
 });
 
 export default defineSchema({
@@ -125,6 +143,24 @@ export default defineSchema({
           at: v.number(),
         }),
       ),
+    ),
+
+    /**
+     * A change the editor asked about and is waiting to be told to go ahead
+     * with — currently only bulk animation, which is the one operation that can
+     * restyle a whole deck from one sentence.
+     *
+     * Stored as the serialised operations rather than re-asked of the model on
+     * confirmation: "sim" has to apply *the plan that was described*, and a
+     * second model call could plausibly return something else, which is the
+     * assistant claiming it did what it said and then doing something different.
+     */
+    pendingOps: v.optional(
+      v.object({
+        ops: v.string(),
+        summary: v.string(),
+        at: v.number(),
+      }),
     ),
 
     clientId: v.string(),

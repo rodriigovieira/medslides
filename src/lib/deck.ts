@@ -37,6 +37,53 @@ export type DiagramNode = {
   body?: string;
 };
 
+/**
+ * How this slide moves when it is presented. Screen-only: the `.pptx` exporter
+ * never reads it, because PowerPoint's own animation model is not this one and
+ * a half-translated build is worse than none.
+ *
+ * Deliberately two strings and nothing else. A keyframe list would be a second
+ * renderer to keep in step with the first, and a doctor cannot review one.
+ * Both fields are strings rather than unions *in storage* — see the schema for
+ * why. `motion.ts` owns the vocabulary; see `MOTION_PRESETS` there.
+ */
+export type SlideAnimation = {
+  preset?: string;
+  pace?: string;
+};
+
+/**
+ * The preset names, and why they live here rather than next to the engine.
+ *
+ * `motion.ts` is a DOM module — `HTMLElement`, `element.animate`, `matchMedia` —
+ * and `convex/chat.ts` runs in Node with no DOM lib. Importing the engine from
+ * the action to reach the enum broke the Convex typecheck outright, which was
+ * the right complaint: the *vocabulary* is part of the storage contract, and the
+ * storage contract lives in this file. The engine imports these; the action
+ * imports these; neither imports the other.
+ *
+ * Each preset is documented where it is implemented, in `MOTION_RECIPES`.
+ */
+export const MOTION_PRESETS = [
+  "nenhuma",
+  "suave",
+  "progressiva",
+  "heroi",
+  "numero",
+  "etapas",
+  "transformar",
+  "destacar",
+] as const;
+
+export type MotionPreset = (typeof MOTION_PRESETS)[number];
+
+/** Overall tempo, applied on top of whichever preset. */
+export const MOTION_PACES = ["rapido", "normal", "solene"] as const;
+export type MotionPace = (typeof MOTION_PACES)[number];
+
+/** What a slide with no `animation` gets. Zero configuration, already good. */
+export const DEFAULT_PRESET: MotionPreset = "suave";
+
 export type Slide = {
   layout: SlideLayout;
   title: string;
@@ -72,6 +119,8 @@ export type Slide = {
   imageStyle?: string;
   /** Resolved after generation; the renderer decides how to use it per layout. */
   imageUrl?: string;
+  /** Screen-only motion. Absent means the default build — see `motion.ts`. */
+  animation?: SlideAnimation;
 };
 
 export type Deck = {
@@ -242,6 +291,24 @@ export function sanitizeSlide(value: unknown): Slide | null {
   }
   if (typeof raw.imageUrl === "string" && raw.imageUrl) {
     slide.imageUrl = raw.imageUrl;
+  }
+
+  // Kept verbatim rather than validated against the current preset list. A deck
+  // saved by a newer build carries preset names this one has never heard of, and
+  // dropping them here would *silently rewrite the user's deck* the first time an
+  // older client touched any slide on it. The presenter falls back to the default
+  // build for a name it doesn't know, which costs nothing; erasing the field
+  // costs the setting permanently.
+  if (raw.animation && typeof raw.animation === "object") {
+    const anim = raw.animation as Record<string, unknown>;
+    const preset = typeof anim.preset === "string" ? anim.preset.trim() : "";
+    const pace = typeof anim.pace === "string" ? anim.pace.trim() : "";
+    if (preset || pace) {
+      slide.animation = {
+        ...(preset ? { preset } : {}),
+        ...(pace ? { pace } : {}),
+      };
+    }
   }
 
   return slide;

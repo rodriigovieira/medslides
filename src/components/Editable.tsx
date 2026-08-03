@@ -34,6 +34,7 @@ export function Editable({
   as: Tag = "span",
   placeholder,
   onFocus,
+  marks,
 }: {
   value: string;
   onCommit: (next: string) => void;
@@ -44,13 +45,20 @@ export function Editable({
   as?: "span" | "div";
   placeholder?: string;
   onFocus?: () => void;
+  /**
+   * `data-` hooks the presenter's motion engine looks for. They have to land on
+   * this element rather than a wrapper: the animation scales the text, and a
+   * wrapper is a full-width block whose box says nothing about the type inside.
+   * Empty everywhere except the slide on stage.
+   */
+  marks?: Record<string, string>;
 }) {
   const ref = useRef<HTMLElement | null>(null);
   const [frozen, setFrozen] = useState<string | null>(null);
 
   if (!editable) {
     return (
-      <Tag className={className} style={style}>
+      <Tag className={className} style={style} {...marks}>
         {value}
       </Tag>
     );
@@ -80,6 +88,7 @@ export function Editable({
       spellCheck={false}
       className={`cursor-text rounded-[0.3em] outline-none transition focus:bg-clinical/[0.07] focus:ring-2 focus:ring-clinical/30 hover:bg-clinical/[0.05] ${className}`}
       style={style}
+      {...marks}
       dangerouslySetInnerHTML={{ __html: escapeHtml(shown) }}
       onFocus={() => {
         setFrozen(value);

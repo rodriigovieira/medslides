@@ -24,6 +24,8 @@ type Op = {
   estilo?: string;
   altaQualidade?: boolean;
   para?: number;
+  animacao?: string;
+  ritmo?: string;
 };
 
 export const applyOps = internalMutation({
@@ -70,6 +72,34 @@ export const applyOps = internalMutation({
       }
       if (Object.keys(patch).length === 0) continue;
       slides[i] = { ...slides[i], ...patch };
+      applied++;
+    }
+
+    // Animation, still on the numbering the model was shown. It is a pure
+    // presentation setting — no cost, no fetch, nothing scheduled — so unlike
+    // every other op here it can never leave the slide in a pending state.
+    //
+    // `animar` also carries an `editar`'s worth of nothing: it never touches the
+    // slide's content. That matters because the confirmation gate in `chat.ts`
+    // replays a stored plan, and a stored plan that could also rewrite text
+    // would be a much harder thing to ask a doctor to approve from one sentence.
+    for (const op of ops.filter((o) => o.tipo === "animar")) {
+      const i = index(op);
+      if (i < 0 || i >= slides.length) continue;
+      const preset = op.animacao?.trim();
+      const pace = op.ritmo?.trim();
+      if (!preset && !pace) continue;
+      slides[i] = {
+        ...slides[i],
+        animation: {
+          // A preset with no pace resets the pace: asking for `nenhuma` after
+          // `progressiva`/`solene` and keeping the slow tempo underneath would
+          // leave the slide carrying a setting nobody can see and nobody asked
+          // to keep.
+          ...(preset ? { preset } : { preset: slides[i].animation?.preset }),
+          ...(pace ? { pace } : {}),
+        },
+      };
       applied++;
     }
 
@@ -170,6 +200,14 @@ export const applyOps = internalMutation({
         notes: op.notas,
         imageQuery: op.imageQuery,
         citationQuery: op.citationQuery,
+        // A slide can be born animated, for the same reason it can be born with
+        // generated art: "adicione um slide de fluxo com as etapas aparecendo
+        // uma a uma" is one sentence, and making the user ask twice is the
+        // product failing to hear it.
+        animation:
+          op.animacao?.trim() || op.ritmo?.trim()
+            ? { preset: op.animacao?.trim(), pace: op.ritmo?.trim() }
+            : undefined,
       });
       if (!candidate) continue;
       const at = Math.max(0, Math.min(slides.length, index(op)));
@@ -253,6 +291,27 @@ export const applyOps = internalMutation({
   }),
 });
 
+/**
+ * Parks a change the user has to approve, or clears it once they have answered.
+ *
+ * Cleared on *every* message that isn't a confirmation, not just on a refusal:
+ * a plan that outlived the sentence it answered would be applied to a "sim" that
+ * meant something else entirely, three messages later.
+ */
+export const setPendingOps = internalMutation({
+  args: {
+    deckId: v.id("decks"),
+    plan: v.optional(v.object({ ops: v.string(), summary: v.string() })),
+  },
+  handler: async (ctx, { deckId, plan }) => {
+    const deck = await ctx.db.get(deckId);
+    if (!deck) return;
+    await ctx.db.patch(deckId, {
+      pendingOps: plan ? { ...plan, at: Date.now() } : undefined,
+    });
+  },
+});
+
 export const appendMessage = internalMutation({
   args: {
     deckId: v.id("decks"),
@@ -307,6 +366,17 @@ export const applySlidePatch = internalMutation({
       left: current.left,
       right: current.right,
       notes: p.notas?.trim() || current.notes,
+      // Carried over unless this edit asked for it. `sanitizeSlide` builds a
+      // fresh object from what it is handed, so anything not passed here is
+      // deleted — which is how an "encurte este slide" would silently throw
+      // away the motion the user had just chosen.
+      animation:
+        p.animacao?.trim() || p.ritmo?.trim()
+          ? {
+              preset: p.animacao?.trim() || current.animation?.preset,
+              pace: p.ritmo?.trim() || undefined,
+            }
+          : current.animation,
     });
     if (!candidate) return nothing;
 

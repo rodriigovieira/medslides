@@ -1,7 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type { Deck } from "@/lib/deck";
+import {
+  playSlideMotion,
+  resolvePlan,
+  snapshotSlide,
+  stopSlideMotion,
+  type SlideRects,
+} from "@/lib/motion";
+import { SlideStage } from "./Motion";
 import { SlideView } from "./SlideView";
 
 /**
@@ -16,9 +30,13 @@ export function Presenter({ deck, onExit }: { deck: Deck; onExit: () => void }) 
   const [chromeVisible, setChromeVisible] = useState(true);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const hideTimer = useRef<number | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  /** Where the outgoing slide's shared elements were, measured just before the swap. */
+  const leaving = useRef<SlideRects | null>(null);
 
   const total = deck.slides.length;
   const slide = deck.slides[index];
+  const plan = resolvePlan(slide?.animation);
 
   // Auto-hide the controls while presenting; any interaction brings them back.
   const wakeChrome = useCallback(() => {
@@ -29,11 +47,37 @@ export function Presenter({ deck, onExit }: { deck: Deck; onExit: () => void }) 
 
   const move = useCallback(
     (delta: number) => {
+      // Cancel first, then measure. Cancelling snaps anything mid-flight to the
+      // finished slide it was heading for, which is both what a presenter who
+      // taps twice quickly wants to see and the only position worth handing to
+      // the next transition — a rect sampled halfway through the last one would
+      // make the next element fly in from nowhere.
+      stopSlideMotion(stageRef.current);
+      leaving.current = snapshotSlide(stageRef.current);
       setIndex((i) => Math.min(total - 1, Math.max(0, i + delta)));
       wakeChrome();
     },
     [total, wakeChrome],
   );
+
+  // Layout effect, not effect: this measures the arriving slide and starts its
+  // animations in the frame React committed it, so nothing is ever painted in
+  // the wrong place first. On the first slide `leaving` is null and it is a
+  // build with no move.
+  //
+  // The plan is read off the slide arriving, not the one leaving: a preset is a
+  // statement about how this slide should appear. It is in the deps by its two
+  // resolved strings rather than by `slide`, so a photo landing mid-talk does
+  // not replay the build — but asking the editor for a preset *does* play it
+  // once, immediately, which is the only honest way to show what was chosen.
+  useLayoutEffect(() => {
+    playSlideMotion(stageRef.current, leaving.current, plan);
+    leaving.current = null;
+    // Depending on `plan` itself would replay on every Convex push, because
+    // `resolvePlan` returns a fresh object each render; the two strings inside
+    // it are the whole of what this effect reads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, plan.preset, plan.pace]);
 
   // Arms the first auto-hide. Every later wake comes from an interaction
   // handler, so nothing sets state synchronously inside an effect.
@@ -89,13 +133,23 @@ export function Presenter({ deck, onExit }: { deck: Deck; onExit: () => void }) 
       <div className="relative flex flex-1 items-center justify-center overflow-hidden">
         {/* Portrait phones get the full width; taller viewports cap by height
             so the slide never overflows behind the controls. */}
-        <div className="w-full px-0 sm:px-6 md:max-w-[min(100%,calc((100vh-11rem)*16/9))]">
-          <SlideView
-            slide={slide}
-            index={index}
-            total={total}
-            references={deck.references}
-          />
+        <div
+          ref={stageRef}
+          // Marks the exact subtree motion owns. The presenter's own chrome sits
+          // outside it and has ordinary CSS transitions of its own; without a
+          // boundary, `getAnimations({ subtree: true })` on any ancestor returns
+          // the chrome fading as though it were slide motion.
+          data-stage=""
+          className="w-full px-0 sm:px-6 md:max-w-[min(100%,calc((100vh-11rem)*16/9))]"
+        >
+          <SlideStage>
+            <SlideView
+              slide={slide}
+              index={index}
+              total={total}
+              references={deck.references}
+            />
+          </SlideStage>
         </div>
 
         {/* Tap zones — the whole left/right thirds, so no aiming required. */}
