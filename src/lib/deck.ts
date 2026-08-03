@@ -16,6 +16,10 @@ export type Slide = {
   stat?: { value: string; label: string };
   notes?: string;
   source?: string;
+  /** English prompt for the backdrop image, when this slide should have one. */
+  imagePrompt?: string;
+  /** Resolved after generation; the renderer treats it as a full-bleed backdrop. */
+  imageUrl?: string;
 };
 
 export type Deck = {
@@ -31,6 +35,107 @@ export type DeckRequest = {
   slideCount: number;
   depth: "panorama" | "aprofundado";
 };
+
+const LAYOUTS: SlideLayout[] = [
+  "capa",
+  "secao",
+  "topicos",
+  "destaque",
+  "comparacao",
+  "encerramento",
+];
+
+function cleanStrings(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const out = value.filter(
+    (item): item is string => typeof item === "string" && item.trim() !== "",
+  );
+  return out.length > 0 ? out : undefined;
+}
+
+function cleanColumn(value: unknown) {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as Record<string, unknown>;
+  const bullets = cleanStrings(raw.bullets);
+  if (typeof raw.heading !== "string" || !bullets) return undefined;
+  return { heading: raw.heading, bullets };
+}
+
+/**
+ * The database validator is strict, so anything the model invents — an unknown
+ * layout, a stray field, a bullet that came back as a number — has to be
+ * dropped here rather than blowing up the whole generation.
+ */
+export function sanitizeSlide(value: unknown): Slide | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.title !== "string" || raw.title.trim() === "") return null;
+
+  const layout = LAYOUTS.includes(raw.layout as SlideLayout)
+    ? (raw.layout as SlideLayout)
+    : "topicos";
+
+  const slide: Slide = { layout, title: raw.title };
+
+  if (typeof raw.subtitle === "string" && raw.subtitle) {
+    slide.subtitle = raw.subtitle;
+  }
+  const bullets = cleanStrings(raw.bullets);
+  if (bullets) slide.bullets = bullets;
+
+  const left = cleanColumn(raw.left);
+  if (left) slide.left = left;
+  const right = cleanColumn(raw.right);
+  if (right) slide.right = right;
+
+  if (raw.stat && typeof raw.stat === "object") {
+    const stat = raw.stat as Record<string, unknown>;
+    if (typeof stat.value === "string" && typeof stat.label === "string") {
+      slide.stat = { value: stat.value, label: stat.label };
+    }
+  }
+
+  if (typeof raw.notes === "string" && raw.notes) slide.notes = raw.notes;
+  if (typeof raw.source === "string" && raw.source) slide.source = raw.source;
+  if (typeof raw.imagePrompt === "string" && raw.imagePrompt) {
+    slide.imagePrompt = raw.imagePrompt;
+  }
+  if (typeof raw.imageUrl === "string" && raw.imageUrl) {
+    slide.imageUrl = raw.imageUrl;
+  }
+
+  return slide;
+}
+
+/** Slides that get a backdrop image, capped so a deck stays cheap to make. */
+export const MAX_IMAGES_PER_DECK = 3;
+
+export function slidesNeedingImages(slides: Slide[]): number[] {
+  const eligible = slides
+    .map((slide, index) => ({ slide, index }))
+    .filter(
+      ({ slide }) =>
+        slide.imagePrompt &&
+        !slide.imageUrl &&
+        (slide.layout === "capa" ||
+          slide.layout === "secao" ||
+          slide.layout === "destaque"),
+    );
+
+  // Cover first, then section dividers in order.
+  eligible.sort((a, b) => {
+    const rank = (l: SlideLayout) => (l === "capa" ? 0 : l === "secao" ? 1 : 2);
+    return rank(a.slide.layout) - rank(b.slide.layout) || a.index - b.index;
+  });
+
+  return eligible.slice(0, MAX_IMAGES_PER_DECK).map(({ index }) => index);
+}
+
+export function sanitizeSlides(values: unknown[]): Slide[] {
+  return values
+    .map(sanitizeSlide)
+    .filter((slide): slide is Slide => slide !== null);
+}
 
 export const AUDIENCES = [
   "Residentes e internos",
@@ -119,6 +224,7 @@ export const DECK_SCHEMA = {
           },
           notes: { type: "STRING" },
           source: { type: "STRING" },
+          imagePrompt: { type: "STRING" },
         },
         required: ["layout", "title", "notes"],
         propertyOrdering: [
@@ -131,6 +237,7 @@ export const DECK_SCHEMA = {
           "right",
           "notes",
           "source",
+          "imagePrompt",
         ],
       },
     },
@@ -174,6 +281,28 @@ Quem lê seus slides está numa sala, à distância, com pouco tempo. O slide é
 - Use \`destaque\` (com \`stat\`) quando um número sozinho carrega o argumento — epidemiologia, mortalidade, NNT.
 - Use \`comparacao\` (com \`left\` e \`right\`) para antes/depois, opção A vs B, indicações vs contraindicações.
 - \`topicos\` é o resto.
+
+## Imagens (\`imagePrompt\`)
+
+Preencha \`imagePrompt\` na **capa** e em cada slide de \`secao\` — são os slides que
+ganham uma imagem de fundo. Nos demais, deixe vazio.
+
+O prompt vai para um gerador de imagens, então escreva **em inglês**, descrevendo
+uma fotografia editorial de ambiente. A imagem é atmosfera, não informação.
+
+Regras rígidas, porque isto é material médico:
+
+- **Nunca** peça imagem de achado clínico, exame de imagem, lesão, lâmina,
+  peça anatômica, gráfico ou diagrama. Uma imagem gerada que pareça um raio-X,
+  uma TC ou uma histologia é desinformação — não importa quão bonita seja.
+- **Nunca** peça rostos reconhecíveis de pacientes ou pessoas em situação de
+  vulnerabilidade.
+- Sempre termine o prompt com: \`no text, no words, no letters, no charts\`.
+- Prefira ambientes e objetos: corredor de emergência à noite, equipe de
+  plantão desfocada ao fundo, instrumental sobre campo estéril, luz de janela em
+  enfermaria vazia, detalhe de estetoscópio, monitor fora de foco.
+
+Exemplo bom: \`empty hospital emergency corridor at night, cool blue light, shallow depth of field, editorial photography, cinematic, no text, no words, no letters, no charts\`
 
 ## Segurança clínica
 

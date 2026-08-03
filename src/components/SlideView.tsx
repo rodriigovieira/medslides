@@ -14,7 +14,9 @@ export function SlideView({
   index: number;
   total: number;
 }) {
-  const dark = slide.layout === "secao" || slide.layout === "destaque";
+  const hasImage = Boolean(slide.imageUrl);
+  // An image slide is always dark: the text sits on a scrim over the photo.
+  const dark = hasImage || slide.layout === "secao" || slide.layout === "destaque";
 
   return (
     <div
@@ -23,8 +25,29 @@ export function SlideView({
       }`}
       style={{ containerType: "inline-size" }}
     >
+      {slide.imageUrl && (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element -- Convex storage URLs, and the exporter needs the same plain URL */}
+          <img
+            src={slide.imageUrl}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          {/* Neutral ink, not the brand green — a scrim in the photo's own hue
+              just erases it. Fades out so the image is actually visible. */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(96deg, rgba(10,20,30,0.92) 0%, rgba(10,20,30,0.80) 34%, rgba(10,20,30,0.42) 62%, rgba(10,20,30,0.12) 100%)",
+            }}
+          />
+        </>
+      )}
+
       <div className="absolute inset-0 flex flex-col px-[7cqw] py-[6cqw]">
-        <Body slide={slide} />
+        <Body slide={slide} dark={dark} />
       </div>
 
       {slide.layout !== "capa" && (
@@ -56,17 +79,24 @@ export function SlideView({
   );
 }
 
-function Body({ slide }: { slide: Slide }) {
+function Body({ slide, dark }: { slide: Slide; dark: boolean }) {
+  const muted = dark ? "text-paper/80" : "text-ink-soft";
+  const faint = dark ? "text-paper/70" : "text-ink-faint";
+
   switch (slide.layout) {
     case "capa":
       return (
         <div className="flex h-full flex-col justify-center">
-          <div className="mb-[3cqw] h-[1cqw] w-[12cqw] bg-clinical" />
-          <h1 className="font-[family-name:var(--font-display)] text-[7cqw] leading-[1.05] tracking-tight">
+          <div
+            className={`mb-[3cqw] h-[1cqw] w-[12cqw] ${dark ? "bg-paper" : "bg-clinical"}`}
+          />
+          <h1 className={`font-[family-name:var(--font-display)] text-[7cqw] leading-[1.05] tracking-tight ${dark ? "max-w-[62cqw]" : "max-w-[76cqw]"}`}>
             {slide.title}
           </h1>
           {slide.subtitle && (
-            <p className="mt-[3cqw] max-w-[70cqw] text-[2.6cqw] leading-snug text-ink-soft">
+            <p
+              className={`mt-[3cqw] text-[2.6cqw] leading-snug ${muted} ${dark ? "max-w-[58cqw]" : "max-w-[70cqw]"}`}
+            >
               {slide.subtitle}
             </p>
           )}
@@ -80,7 +110,7 @@ function Body({ slide }: { slide: Slide }) {
             {slide.title}
           </h2>
           {slide.subtitle && (
-            <p className="mt-[2.5cqw] max-w-[68cqw] text-[2.4cqw] leading-snug text-paper/75">
+            <p className={`mt-[2.5cqw] max-w-[68cqw] text-[2.4cqw] leading-snug ${muted}`}>
               {slide.subtitle}
             </p>
           )}
@@ -90,7 +120,7 @@ function Body({ slide }: { slide: Slide }) {
     case "destaque":
       return (
         <div className="flex h-full flex-col justify-center">
-          <h2 className="text-[2.4cqw] font-medium uppercase tracking-[0.18em] text-paper/70">
+          <h2 className={`text-[2.4cqw] font-medium uppercase tracking-[0.18em] ${faint}`}>
             {slide.title}
           </h2>
           {slide.stat && (
@@ -98,7 +128,7 @@ function Body({ slide }: { slide: Slide }) {
               <div className="mt-[2cqw] font-[family-name:var(--font-display)] text-[13cqw] leading-none">
                 {slide.stat.value}
               </div>
-              <p className="mt-[1.5cqw] max-w-[70cqw] text-[2.8cqw] leading-snug text-paper/85">
+              <p className={`mt-[1.5cqw] max-w-[70cqw] text-[2.8cqw] leading-snug ${muted}`}>
                 {slide.stat.label}
               </p>
             </>
@@ -106,7 +136,7 @@ function Body({ slide }: { slide: Slide }) {
           {slide.bullets && slide.bullets.length > 0 && (
             <ul className="mt-[3cqw] space-y-[1.2cqw]">
               {slide.bullets.map((b, i) => (
-                <li key={i} className="text-[2.1cqw] leading-snug text-paper/80">
+                <li key={i} className={`text-[2.1cqw] leading-snug ${muted}`}>
                   {b}
                 </li>
               ))}
@@ -118,19 +148,19 @@ function Body({ slide }: { slide: Slide }) {
     case "comparacao":
       return (
         <>
-          <SlideTitle title={slide.title} subtitle={slide.subtitle} />
+          <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} />
           <div className="mt-[4cqw] grid flex-1 grid-cols-2 gap-[5cqw]">
             {[slide.left, slide.right].map((col, i) =>
               col ? (
-                <div key={i} className="border-t-[0.4cqw] border-clinical pt-[2cqw]">
-                  <h3 className="text-[2.4cqw] font-semibold leading-snug text-clinical-deep">
+                <div key={i} className={`${dark ? "border-paper/50" : "border-clinical"} border-t-[0.4cqw] pt-[2cqw]`}>
+                  <h3 className={`text-[2.4cqw] font-semibold leading-snug ${dark ? "text-paper" : "text-clinical-deep"}`}>
                     {col.heading}
                   </h3>
                   <ul className="mt-[2cqw] space-y-[1.4cqw]">
                     {col.bullets.map((b, j) => (
                       <li
                         key={j}
-                        className="text-[2cqw] leading-snug text-ink-soft"
+                        className={`text-[2cqw] leading-snug ${muted}`}
                       >
                         {b}
                       </li>
@@ -148,7 +178,7 @@ function Body({ slide }: { slide: Slide }) {
     case "encerramento":
       return (
         <>
-          <SlideTitle title={slide.title} subtitle={slide.subtitle} />
+          <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} />
           <ul className="mt-[4cqw] space-y-[2.2cqw]">
             {(slide.bullets ?? []).map((b, i) => (
               <li key={i} className="flex gap-[2cqw]">
@@ -165,14 +195,12 @@ function Body({ slide }: { slide: Slide }) {
     default:
       return (
         <>
-          <SlideTitle title={slide.title} subtitle={slide.subtitle} />
+          <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} />
           <ul className="mt-[4cqw] space-y-[2cqw]">
             {(slide.bullets ?? []).map((b, i) => (
               <li key={i} className="flex gap-[2cqw]">
-                <span className="mt-[1.2cqw] h-[0.8cqw] w-[0.8cqw] shrink-0 rounded-full bg-clinical" />
-                <span className="text-[2.5cqw] leading-snug text-ink-soft">
-                  {b}
-                </span>
+                <span className={`mt-[1.2cqw] h-[0.8cqw] w-[0.8cqw] shrink-0 rounded-full ${dark ? "bg-paper/80" : "bg-clinical"}`} />
+                <span className={`text-[2.5cqw] leading-snug ${muted}`}>{b}</span>
               </li>
             ))}
           </ul>
@@ -184,9 +212,11 @@ function Body({ slide }: { slide: Slide }) {
 function SlideTitle({
   title,
   subtitle,
+  dark,
 }: {
   title: string;
   subtitle?: string;
+  dark: boolean;
 }) {
   return (
     <div>
@@ -194,7 +224,7 @@ function SlideTitle({
         {title}
       </h2>
       {subtitle && (
-        <p className="mt-[1.5cqw] max-w-[75cqw] text-[2.1cqw] leading-snug text-ink-faint">
+        <p className={`mt-[1.5cqw] max-w-[75cqw] text-[2.1cqw] leading-snug ${dark ? "text-paper/70" : "text-ink-faint"}`}>
           {subtitle}
         </p>
       )}

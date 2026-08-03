@@ -30,16 +30,71 @@ function slugify(text: string): string {
   );
 }
 
+/**
+ * pptxgenjs can take a remote URL, but it fetches at write time with no error
+ * surface — a slow or CORS-blocked image silently produces a blank slide. Doing
+ * the fetch here means a failure just drops the backdrop.
+ */
+async function fetchImageData(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () =>
+        resolve(typeof reader.result === "string" ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function exportPptx(deck: Deck) {
   const { default: PptxGenJS } = await import("pptxgenjs");
   const pptx = new PptxGenJS();
   pptx.layout = "LAYOUT_16x9";
   pptx.title = deck.title;
 
+  const images = await Promise.all(
+    deck.slides.map((slide) =>
+      slide.imageUrl ? fetchImageData(slide.imageUrl) : Promise.resolve(null),
+    ),
+  );
+
   deck.slides.forEach((slide, index) => {
-    const dark = slide.layout === "secao" || slide.layout === "destaque";
+    const image = images[index];
+    const dark =
+      Boolean(image) ||
+      slide.layout === "secao" ||
+      slide.layout === "destaque";
     const s = pptx.addSlide();
     s.background = { color: dark ? CLINICAL_DEEP : PAPER };
+
+    if (image) {
+      s.addImage({ data: image, x: 0, y: 0, w: W, h: H });
+      // PowerPoint shapes can't hold a CSS-style gradient, so approximate the
+      // web scrim with a light full-bleed wash plus a denser panel under the
+      // text. Neutral ink, never the brand green — see SlideView.
+      s.addShape("rect", {
+        x: 0,
+        y: 0,
+        w: W,
+        h: H,
+        fill: { color: "0A141E", transparency: 55 },
+        line: { type: "none" },
+      });
+      s.addShape("rect", {
+        x: 0,
+        y: 0,
+        w: W * 0.62,
+        h: H,
+        fill: { color: "0A141E", transparency: 22 },
+        line: { type: "none" },
+      });
+    }
 
     renderSlide(s, slide, dark);
 
@@ -106,7 +161,7 @@ function renderSlide(
         y: 1.55,
         w: 1.2,
         h: 0.1,
-        fill: { color: CLINICAL },
+        fill: { color: dark ? PAPER : CLINICAL },
         line: { type: "none" },
       });
       s.addText(slide.title, {
@@ -116,7 +171,7 @@ function renderSlide(
         h: 1.6,
         fontSize: 40,
         bold: false,
-        color: INK,
+        color: dark ? PAPER : INK,
         valign: "top",
         lineSpacingMultiple: 1.05,
       });
@@ -127,7 +182,7 @@ function renderSlide(
           w: CONTENT_W * 0.8,
           h: 1,
           fontSize: 15,
-          color: INK_SOFT,
+          color: dark ? PAPER : INK_SOFT,
           valign: "top",
         });
       }
@@ -205,7 +260,7 @@ function renderSlide(
     }
 
     case "comparacao": {
-      addHeading(s, slide);
+      addHeading(s, slide, dark);
       const colW = (CONTENT_W - 0.6) / 2;
       [slide.left, slide.right].forEach((col, i) => {
         if (!col) return;
@@ -215,7 +270,7 @@ function renderSlide(
           y: 2.15,
           w: colW,
           h: 0.05,
-          fill: { color: CLINICAL },
+          fill: { color: dark ? PAPER : CLINICAL },
           line: { type: "none" },
         });
         s.addText(col.heading, {
@@ -225,7 +280,7 @@ function renderSlide(
           h: 0.5,
           fontSize: 14,
           bold: true,
-          color: CLINICAL_DEEP,
+          color: dark ? PAPER : CLINICAL_DEEP,
           valign: "top",
         });
         s.addText(bulletText(col.bullets, { fontSize: 12 }), {
@@ -240,7 +295,7 @@ function renderSlide(
     }
 
     case "encerramento": {
-      addHeading(s, slide);
+      addHeading(s, slide, dark);
       (slide.bullets ?? []).forEach((b, i) => {
         const y = 2.2 + i * 0.62;
         s.addText(String(i + 1).padStart(2, "0"), {
@@ -258,7 +313,7 @@ function renderSlide(
           w: CONTENT_W - 0.55,
           h: 0.6,
           fontSize: 14,
-          color: INK,
+          color: dark ? PAPER : INK,
           valign: "top",
           lineSpacingMultiple: 1.15,
         });
@@ -267,7 +322,7 @@ function renderSlide(
     }
 
     default: {
-      addHeading(s, slide);
+      addHeading(s, slide, dark);
       s.addText(bulletText(slide.bullets ?? [], { fontSize: 14 }), {
         x: MARGIN,
         y: 2.15,
@@ -279,17 +334,14 @@ function renderSlide(
   }
 }
 
-function addHeading(
-  s: PptxSlide,
-  slide: Slide,
-) {
+function addHeading(s: PptxSlide, slide: Slide, dark: boolean) {
   s.addText(slide.title, {
     x: MARGIN,
     y: 0.75,
     w: CONTENT_W,
     h: 0.95,
     fontSize: 24,
-    color: INK,
+    color: dark ? PAPER : INK,
     valign: "top",
     lineSpacingMultiple: 1.15,
   });
@@ -300,7 +352,7 @@ function addHeading(
       w: CONTENT_W * 0.85,
       h: 0.45,
       fontSize: 12,
-      color: INK_FAINT,
+      color: dark ? PAPER : INK_FAINT,
       valign: "top",
     });
   }

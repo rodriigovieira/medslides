@@ -8,14 +8,17 @@ import { SlideView } from "./SlideView";
 export function DeckWorkspace({
   deck,
   streaming,
+  shareId,
   onPresent,
   onRestart,
 }: {
   deck: Deck;
   streaming: boolean;
+  shareId?: string;
   onPresent: () => void;
   onRestart: () => void;
 }) {
+  const [copied, setCopied] = useState(false);
   // `null` means "not pinned yet": while slides stream in we follow the newest
   // one, and once the reader picks a thumbnail we stay on their choice.
   const [pinned, setPinned] = useState<number | null>(null);
@@ -56,6 +59,23 @@ export function DeckWorkspace({
         </div>
 
         <div className="flex items-center gap-2">
+          {shareId && (
+            <button
+              onClick={async () => {
+                const url = `${window.location.origin}/d/${shareId}`;
+                try {
+                  await navigator.clipboard.writeText(url);
+                  setCopied(true);
+                  window.setTimeout(() => setCopied(false), 2000);
+                } catch {
+                  window.prompt("Copie o link:", url);
+                }
+              }}
+              className="rounded-lg px-3 py-2 text-sm text-ink-soft transition hover:bg-rule/50"
+            >
+              {copied ? "Link copiado" : "Compartilhar"}
+            </button>
+          )}
           <button
             onClick={onRestart}
             className="rounded-lg px-3 py-2 text-sm text-ink-soft transition hover:bg-rule/50"
