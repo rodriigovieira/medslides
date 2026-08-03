@@ -32,9 +32,10 @@ void main() {
     // hardcoded 'Gerar apresentação' passes on a Brazilian simulator and
     // fails on an English one for reasons that have nothing to do with the
     // app being broken.
-    final l10n = AppLocalizations.of(
-      tester.element(find.byType(MaterialApp)),
-    )!;
+    // Looked up from a Scaffold, not from the MaterialApp: MaterialApp's own
+    // element sits *above* the Localizations widget it builds, so
+    // AppLocalizations.of on it returns null.
+    final l10n = AppLocalizations.of(tester.element(find.byType(Scaffold).first))!;
 
     // 1. Open the generate sheet. Which control does that depends on whether
     // this install has been run before: the intro shows once and its own

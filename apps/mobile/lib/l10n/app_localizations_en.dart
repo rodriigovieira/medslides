@@ -123,7 +123,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get slideReferences => 'References on this slide';
 
   @override
-  String get presenterHint => 'Tap the sides to move · hold for the controls';
+  String get presenterHint =>
+      'Tap the sides to move · the middle for controls · swipe down to leave';
 
   @override
   String get noNotes => 'No notes on this slide.';

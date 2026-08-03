@@ -124,7 +124,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get presenterHint =>
-      'Toque nas laterais para avançar · segure para os controles';
+      'Toque nas laterais para avançar · no meio para os controles · arraste para baixo para sair';
 
   @override
   String get noNotes => 'Sem notas neste slide.';

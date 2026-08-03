@@ -305,7 +305,7 @@ abstract class AppLocalizations {
   /// No description provided for @presenterHint.
   ///
   /// In pt, this message translates to:
-  /// **'Toque nas laterais para avançar · segure para os controles'**
+  /// **'Toque nas laterais para avançar · no meio para os controles · arraste para baixo para sair'**
   String get presenterHint;
 
   /// No description provided for @noNotes.
