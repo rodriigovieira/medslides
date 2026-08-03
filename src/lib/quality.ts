@@ -34,6 +34,17 @@ export type QualityReport = {
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
 
+/**
+ * `imageUrl` is resolved at query time; a raw database export carries only
+ * `imageStorageId`. Scoring a snapshot has to accept either, or every deck
+ * reads as having no images.
+ */
+function hasPhoto(slide: Slide): boolean {
+  return Boolean(
+    slide.imageUrl || (slide as { imageStorageId?: string }).imageStorageId,
+  );
+}
+
 /** Slides whose whole job is a visual or a transition carry no body text. */
 function isTextSlide(slide: Slide): boolean {
   return (
@@ -82,7 +93,7 @@ export function scoreDeck(deck: Deck): QualityReport {
   slides.forEach((slide, i) => {
     const fit = fitSlide({
       slide,
-      panel: Boolean(slide.imageUrl) && isTextSlide(slide),
+      panel: hasPhoto(slide) && isTextSlide(slide),
       hasRefs: (slide.refs?.length ?? 0) > 0,
     });
     if (fit.scale <= 0.74) {
@@ -126,7 +137,7 @@ export function scoreDeck(deck: Deck): QualityReport {
   // 4. Visual evidence — the assertion-evidence core: a slide should show
   //    something, not just list. Photo or diagram both count.
   const withVisual = slides.filter(
-    (s) => s.imageUrl || DIAGRAM_LAYOUTS.includes(s.layout) || s.stat,
+    (s) => hasPhoto(s) || DIAGRAM_LAYOUTS.includes(s.layout) || s.stat,
   ).length;
   const visual = clamp01(withVisual / slides.length / 0.7);
 
