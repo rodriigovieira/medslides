@@ -4,6 +4,7 @@ import {
   type Reference,
   type Slide,
 } from "@/lib/deck";
+import { fitSlide, sized } from "@/lib/fit";
 import { Diagram } from "./Diagram";
 
 /**
@@ -28,6 +29,14 @@ export function SlideView({
 }) {
   const image = slide.imageUrl;
   const treatment = imageTreatment(slide);
+  const citedCount = (slide.refs ?? []).filter((n) =>
+    references?.some((r) => r.n === n),
+  ).length;
+  const fit = fitSlide({
+    slide,
+    panel: treatment === "panel",
+    hasRefs: citedCount > 0,
+  });
   const onDark = Boolean(image) && treatment === "full";
   const dark = onDark || slide.layout === "secao" || slide.layout === "destaque";
 
@@ -70,9 +79,15 @@ export function SlideView({
       <div
         className={`absolute inset-0 flex flex-col ${
           treatment === "panel" ? "pl-[7cqw] pr-[46cqw]" : "px-[7cqw]"
-        } py-[6.5cqw]`}
+        }`}
+        style={{
+          paddingTop: "6.5cqw",
+          // Reserve the citation strip's height so body text can never flow
+          // underneath it — that collision was the visible bug.
+          paddingBottom: `${(6.5 + fit.footer - 2.6).toFixed(2)}cqw`,
+        }}
       >
-        <Body slide={slide} dark={dark} />
+        <Body slide={slide} dark={dark} scale={fit.scale} />
       </div>
 
       {slide.layout !== "capa" && (
@@ -162,7 +177,15 @@ function Footer({
   );
 }
 
-function Body({ slide, dark }: { slide: Slide; dark: boolean }) {
+function Body({
+  slide,
+  dark,
+  scale,
+}: {
+  slide: Slide;
+  dark: boolean;
+  scale: number;
+}) {
   const muted = dark ? "text-paper/85" : "text-ink-soft";
   const faint = dark ? "text-paper/65" : "text-ink-faint";
   const rule = dark ? "bg-paper" : "bg-clinical";
@@ -170,7 +193,7 @@ function Body({ slide, dark }: { slide: Slide; dark: boolean }) {
   if (DIAGRAM_LAYOUTS.includes(slide.layout)) {
     return (
       <>
-        <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} />
+        <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} scale={scale} />
         <div className="mt-[3cqw] flex flex-1 flex-col">
           <Diagram slide={slide} dark={dark} />
         </div>
@@ -250,14 +273,15 @@ function Body({ slide, dark }: { slide: Slide; dark: boolean }) {
     case "comparacao":
       return (
         <>
-          <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} />
+          <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} scale={scale} />
           <div className="mt-[3.6cqw] grid flex-1 grid-cols-2 gap-[4.5cqw]">
             {[slide.left, slide.right].map((col, i) =>
               col ? (
                 <div key={i}>
                   <div className={`h-[0.4cqw] w-full ${rule}`} />
                   <h3
-                    className={`mt-[1.6cqw] text-[2.3cqw] font-semibold leading-snug ${
+                    style={{ fontSize: sized(2.3, scale) }}
+                    className={`mt-[1.6cqw] font-semibold leading-snug ${
                       dark ? "text-paper" : "text-clinical-deep"
                     }`}
                   >
@@ -267,7 +291,8 @@ function Body({ slide, dark }: { slide: Slide; dark: boolean }) {
                     {col.bullets.map((b, j) => (
                       <li
                         key={j}
-                        className={`text-[1.95cqw] leading-snug ${muted}`}
+                        className={`leading-snug ${muted}`}
+                        style={{ fontSize: sized(1.95, scale) }}
                       >
                         {b}
                       </li>
@@ -285,14 +310,22 @@ function Body({ slide, dark }: { slide: Slide; dark: boolean }) {
     case "encerramento":
       return (
         <>
-          <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} />
-          <ul className="mt-[3.4cqw] space-y-[2cqw]">
+          <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} scale={scale} />
+          <ul
+            className="mt-[3.4cqw]"
+            style={{ display: "grid", gap: sized(2, scale) }}
+          >
             {(slide.bullets ?? []).map((b, i) => (
               <li key={i} className="flex gap-[1.8cqw]">
-                <span className="mt-[0.5cqw] font-[family-name:var(--font-display)] text-[2.4cqw] leading-none text-signal tabular-nums">
+                <span
+                  className="mt-[0.5cqw] font-[family-name:var(--font-display)] leading-none text-signal tabular-nums"
+                  style={{ fontSize: sized(2.4, scale) }}
+                >
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <span className="text-[2.3cqw] leading-snug">{b}</span>
+                <span className="leading-snug" style={{ fontSize: sized(2.3, scale) }}>
+                  {b}
+                </span>
               </li>
             ))}
           </ul>
@@ -302,8 +335,11 @@ function Body({ slide, dark }: { slide: Slide; dark: boolean }) {
     default:
       return (
         <>
-          <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} />
-          <ul className="mt-[3.4cqw] space-y-[1.9cqw]">
+          <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} scale={scale} />
+          <ul
+            className="mt-[3.4cqw]"
+            style={{ display: "grid", gap: sized(1.9, scale) }}
+          >
             {(slide.bullets ?? []).map((b, i) => (
               <li key={i} className="flex gap-[1.8cqw]">
                 <span
@@ -311,7 +347,10 @@ function Body({ slide, dark }: { slide: Slide; dark: boolean }) {
                     dark ? "bg-paper/80" : "bg-clinical"
                   }`}
                 />
-                <span className={`text-[2.3cqw] leading-snug ${muted}`}>
+                <span
+                  className={`leading-snug ${muted}`}
+                  style={{ fontSize: sized(2.3, scale) }}
+                >
                   {b}
                 </span>
               </li>
@@ -326,21 +365,27 @@ function SlideTitle({
   title,
   subtitle,
   dark,
+  scale,
 }: {
   title: string;
   subtitle?: string;
   dark: boolean;
+  scale: number;
 }) {
   return (
     <div>
-      <h2 className="font-[family-name:var(--font-display)] text-[4.2cqw] leading-[1.12] tracking-tight">
+      <h2
+        className="font-[family-name:var(--font-display)] leading-[1.12] tracking-tight"
+        style={{ fontSize: sized(4.2, scale) }}
+      >
         {title}
       </h2>
       {subtitle && (
         <p
-          className={`mt-[1.3cqw] text-[2cqw] leading-snug ${
+          className={`mt-[1.3cqw] leading-snug ${
             dark ? "text-paper/70" : "text-ink-faint"
           }`}
+          style={{ fontSize: sized(2, scale) }}
         >
           {subtitle}
         </p>

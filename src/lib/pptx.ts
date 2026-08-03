@@ -7,6 +7,7 @@ import {
 } from "./deck";
 import { composeSlideImage, treatmentFor, type Treatment } from "./compose";
 import { renderDiagram } from "./pptxDiagram";
+import { fitSlide } from "./fit";
 
 /** pptxgenjs doesn't export its slide type, so derive it from `addSlide`. */
 type PptxSlide = ReturnType<InstanceType<typeof PptxGenJS>["addSlide"]>;
@@ -74,7 +75,20 @@ export async function exportPptx(deck: Deck) {
       s.addImage({ data: image, x: 0, y: 0, w: W, h: H });
     }
 
-    renderSlide(s, slide, dark, treatment);
+    // Only PubMed-verified references reach the slide.
+    const cited = (slide.refs ?? [])
+      .map((n) => deck.references?.find((r) => r.n === n))
+      .filter((r): r is NonNullable<typeof r> => Boolean(r))
+      .slice(0, 2);
+
+    // Same fitting the renderer uses, so an over-full slide shrinks in the
+    // file exactly as it does on screen instead of running off the edge.
+    const fit = fitSlide({
+      slide,
+      panel: treatment === "panel",
+      hasRefs: cited.length > 0,
+    });
+    renderSlide(s, slide, dark, treatment, fit.scale);
 
     if (slide.layout !== "capa") {
       s.addShape("rect", {
@@ -96,11 +110,6 @@ export async function exportPptx(deck: Deck) {
       });
     }
 
-    // Only PubMed-verified references reach the slide.
-    const cited = (slide.refs ?? [])
-      .map((n) => deck.references?.find((r) => r.n === n))
-      .filter((r): r is NonNullable<typeof r> => Boolean(r))
-      .slice(0, 2);
     if (cited.length > 0) {
       s.addText(
         cited
@@ -191,6 +200,7 @@ function renderSlide(
   slide: Slide,
   dark: boolean,
   treatment: Treatment,
+  scale = 1,
 ) {
   // With a photo panel on the right, text has to stop before it.
   const textW = treatment === "panel" ? W * 0.53 - MARGIN : CONTENT_W;
@@ -198,7 +208,7 @@ function renderSlide(
     items.map((text) => ({
       text,
       options: {
-        fontSize: opts.fontSize,
+        fontSize: opts.fontSize * scale,
         color: dark ? PAPER : INK_SOFT,
         bullet: { characterCode: "25CF", indent: 18 },
         paraSpaceAfter: opts.fontSize * 0.6,
@@ -207,7 +217,7 @@ function renderSlide(
     }));
 
   if (DIAGRAM_LAYOUTS.includes(slide.layout)) {
-    addHeading(s, slide, dark, CONTENT_W);
+    addHeading(s, slide, dark, CONTENT_W, scale);
     renderDiagram(s, slide, dark, {
       x: MARGIN,
       y: 1.85,
@@ -321,7 +331,7 @@ function renderSlide(
     }
 
     case "comparacao": {
-      addHeading(s, slide, dark, textW);
+      addHeading(s, slide, dark, textW, scale);
       const colW = (CONTENT_W - 0.6) / 2;
       [slide.left, slide.right].forEach((col, i) => {
         if (!col) return;
@@ -356,7 +366,7 @@ function renderSlide(
     }
 
     case "encerramento": {
-      addHeading(s, slide, dark, textW);
+      addHeading(s, slide, dark, textW, scale);
       (slide.bullets ?? []).forEach((b, i) => {
         const y = 2.2 + i * 0.62;
         s.addText(String(i + 1).padStart(2, "0"), {
@@ -383,7 +393,7 @@ function renderSlide(
     }
 
     default: {
-      addHeading(s, slide, dark, textW);
+      addHeading(s, slide, dark, textW, scale);
       s.addText(bulletText(slide.bullets ?? [], { fontSize: 13 }), {
         x: MARGIN,
         y: 2.15,
@@ -395,13 +405,19 @@ function renderSlide(
   }
 }
 
-function addHeading(s: PptxSlide, slide: Slide, dark: boolean, textW: number) {
+function addHeading(
+  s: PptxSlide,
+  slide: Slide,
+  dark: boolean,
+  textW: number,
+  scale = 1,
+) {
   s.addText(slide.title, {
     x: MARGIN,
     y: 0.75,
     w: textW,
     h: 0.95,
-    fontSize: 24,
+    fontSize: 24 * scale,
     color: dark ? PAPER : INK,
     valign: "top",
     lineSpacingMultiple: 1.15,

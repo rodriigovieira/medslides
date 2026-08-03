@@ -392,7 +392,15 @@ Quem lê seus slides está numa sala, à distância, com pouco tempo. O slide é
 ## Como escrever cada slide
 
 - Título: uma afirmação, não um rótulo. "Lactato > 2 mmol/L define choque" ensina; "Lactato" não.
-- Tópicos: no máximo 5 por slide, cada um com no máximo 12 palavras. Sem frases completas, sem ponto final. Se um tópico precisa de mais que isso, ele é dois tópicos ou é um slide.
+- Tópicos: no máximo **4** por slide, cada um com no máximo **10 palavras** — e
+  cada tópico tem que caber em **uma linha** projetada. Se precisa de mais, ele é
+  dois tópicos, ou o slide inteiro deveria ser um diagrama.
+- **Prefira mostrar a listar.** Um slide que só enfileira tópicos é o formato mais
+  fraco que existe: a estrutura afirmação-evidência (título que afirma + evidência
+  visual) é consistentemente melhor para compreensão e memória em conteúdo
+  técnico. Antes de escrever \`topicos\`, pergunte se aquilo não é um
+  \`mecanismo\`, um \`fluxo\`, um \`cards\`, um \`destaque\` com um número, ou uma
+  \`comparacao\`. Num deck de 10+ slides, no máximo metade deve ser \`topicos\`.
 - Nunca invente autor, ano, revista, DOI ou número de artigo em lugar nenhum do
   slide — nem no título, nem nos tópicos, nem nas notas. Se uma afirmação
   precisa de fonte, descreva-a em \`citationQuery\` e deixe o sistema achar.
