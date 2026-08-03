@@ -47,6 +47,11 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # Drives integration_test/smoke_test.dart on a real simulator. Deliberately
+  # not run by `flutter test` or by testflight.sh: it generates a real deck on
+  # the production deployment, which is the only deployment the phone has.
+  integration_test:
+    sdk: flutter
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.14.1
 
