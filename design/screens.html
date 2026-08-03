@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="clinico">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MedSlides — telas e opções de interação</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Archivo:wght@500;600;700&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ===== tokens: mesmos quatro temas de system.html ===== */
+[data-theme="clinico"]{--paper:#F7F6F2;--surface:#FFFEFB;--surface-alt:#F1EFE8;--ink:#0E1B2A;--ink-soft:#3C4A5A;--ink-faint:#6D7683;--rule:#E2DED4;--accent:#0D7A6F;--accent-deep:#085A52;--accent-tint:#E7F2F0;--signal:#B15735;--slide-bg:#FFFEFB;--slide-dark:#0A141E;--font-display:"Instrument Serif",Georgia,serif;--font-text:"IBM Plex Sans",system-ui,sans-serif;--dw:400;--radius:10px;--radius-lg:16px;--shadow:0 1px 2px rgba(14,27,42,.04),0 12px 32px -16px rgba(14,27,42,.18)}
+[data-theme="congresso"]{--paper:#0B1220;--surface:#111C2E;--surface-alt:#16243A;--ink:#F4F1EA;--ink-soft:#C3CCDA;--ink-faint:#8494A8;--rule:#22334D;--accent:#C9A227;--accent-deep:#E3C158;--accent-tint:#1E2A3F;--signal:#E0653F;--slide-bg:#0E1829;--slide-dark:#070E1A;--font-display:"Fraunces",Georgia,serif;--font-text:"IBM Plex Sans",system-ui,sans-serif;--dw:600;--radius:8px;--radius-lg:14px;--shadow:0 1px 2px rgba(0,0,0,.4),0 18px 40px -20px rgba(0,0,0,.8)}
+[data-theme="residencia"]{--paper:#FFFFFF;--surface:#FFFFFF;--surface-alt:#F2F5F9;--ink:#0B1524;--ink-soft:#38465C;--ink-faint:#68768C;--rule:#D9E1EC;--accent:#1D5FD0;--accent-deep:#16489E;--accent-tint:#E7EFFC;--signal:#C9342B;--slide-bg:#FFFFFF;--slide-dark:#0B1524;--font-display:"Archivo",system-ui,sans-serif;--font-text:"IBM Plex Sans",system-ui,sans-serif;--dw:700;--radius:6px;--radius-lg:10px;--shadow:0 1px 2px rgba(11,21,36,.06),0 10px 24px -14px rgba(11,21,36,.25)}
+[data-theme="precisao"]{--paper:#FAFAF9;--surface:#FFFFFF;--surface-alt:#F0F0EE;--ink:#14140F;--ink-soft:#45453D;--ink-faint:#76766D;--rule:#E3E3DE;--accent:#14140F;--accent-deep:#000000;--accent-tint:#EDEDE9;--signal:#C64A25;--slide-bg:#FFFFFF;--slide-dark:#14140F;--font-display:"Space Grotesk",system-ui,sans-serif;--font-text:"IBM Plex Sans",system-ui,sans-serif;--dw:700;--radius:4px;--radius-lg:8px;--shadow:0 1px 2px rgba(20,20,15,.05),0 14px 30px -18px rgba(20,20,15,.3)}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-text);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--font-display);font-weight:var(--dw);margin:0;letter-spacing:-.01em}
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px 80px}
+.section{padding-top:64px}
+.section>h2{font-size:28px;margin-bottom:8px}
+.lede{color:var(--ink-soft);max-width:64ch;margin:0 0 24px}
+.note{font-size:13px;color:var(--ink-faint)}
+.hr{height:1px;background:var(--rule);border:0;margin:56px 0 0}
+
+.topbar{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--rule)}
+.topbar-inner{max-width:1240px;margin:0 auto;padding:12px 24px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:19px;font-weight:var(--dw)}
+.brand i{width:18px;height:18px;border-radius:5px;background:var(--accent)}
+.links a{font-size:13px;color:var(--ink-soft);text-decoration:none;margin-right:14px}
+.picker{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+.picker button{font:inherit;font-size:13px;cursor:pointer;padding:7px 13px;border-radius:999px;border:1px solid var(--rule);background:transparent;color:var(--ink-soft)}
+.picker button[aria-pressed=true]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+/* ===== device frames ===== */
+.devices{display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start}
+.device-label{font-family:ui-monospace,monospace;font-size:12px;color:var(--ink-faint);margin-bottom:10px}
+
+/* desktop: renderiza 1440x900 e reduz por transform, para a proporção ser honesta */
+.mac{width:760px}
+.mac .scaler{width:1440px;height:900px;transform:scale(.5278);transform-origin:top left}
+.mac .shell{width:760px;height:475px;border-radius:12px;overflow:hidden;border:1px solid var(--rule);background:var(--surface);box-shadow:var(--shadow)}
+.mac .chrome{height:34px;background:var(--surface-alt);border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:8px;padding:0 12px}
+.dot{width:10px;height:10px;border-radius:999px;background:var(--rule)}
+.urlbar{flex:1;height:20px;border-radius:999px;background:var(--paper);border:1px solid var(--rule);font-size:10px;color:var(--ink-faint);display:flex;align-items:center;justify-content:center}
+.mac .viewport{height:441px;overflow:hidden;position:relative}
+
+/* mobile: 390x844 real, reduzido */
+.iphone{width:293px}
+.iphone .shell{width:293px;height:633px;border-radius:38px;padding:9px;background:#111;box-shadow:0 20px 50px -24px rgba(0,0,0,.5)}
+.iphone .screen{width:275px;height:615px;border-radius:30px;overflow:hidden;background:var(--paper);position:relative}
+.iphone .scaler{width:390px;height:872px;transform:scale(.7051);transform-origin:top left}
+.island{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:78px;height:22px;border-radius:999px;background:#111;z-index:9}
+.statusbar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 22px 0 26px;font-size:13px;font-weight:600;color:var(--ink)}
+.homebar{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:120px;height:4px;border-radius:999px;background:var(--ink);opacity:.28;z-index:9}
+
+/* ===== app chrome (compartilhado) ===== */
+.app{height:100%;background:var(--paper);color:var(--ink);display:flex;flex-direction:column;font-size:15px}
+.hdr{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--paper)}
+.hdr .t{font-family:var(--font-display);font-weight:var(--dw);font-size:19px;line-height:1.1}
+.hdr .m{font-size:11px;color:var(--ink-faint)}
+.btn{font:inherit;font-size:14px;font-weight:500;border-radius:var(--radius);padding:9px 14px;border:1px solid transparent;cursor:pointer}
+.btn-primary{background:var(--ink);color:var(--paper)}
+.btn-accent{background:var(--accent);color:var(--paper)}
+[data-theme=congresso] .btn-accent,[data-theme=precisao] .btn-accent{color:var(--slide-dark)}
+.btn-sec{background:var(--surface);border-color:var(--rule);color:var(--ink)}
+.ico{width:34px;height:34px;border-radius:999px;display:grid;place-items:center;color:var(--ink-soft);border:1px solid transparent;font-size:15px}
+.rail{width:210px;border-right:1px solid var(--rule);padding:12px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.thumb{display:flex;gap:8px;align-items:center}
+.thumb .n{width:14px;text-align:right;font-size:11px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.thumb .s{flex:1;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.thumb.active .s{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 25%,transparent)}
+.stage{flex:1;padding:28px 40px;display:flex;flex-direction:column;align-items:center;gap:18px;overflow:hidden}
+
+/* ===== slide ===== */
+.slide{container-type:inline-size;position:relative;aspect-ratio:16/9;width:100%;border-radius:8px;overflow:hidden;border:1px solid var(--rule);background:var(--slide-bg);color:var(--ink)}
+.slide.dark{background:var(--slide-dark);color:#F7F6F2;border-color:transparent}
+.slide .pad{position:absolute;inset:0;padding:6.5cqw 7cqw;display:flex;flex-direction:column}
+.slide .bar{position:absolute;left:0;top:0;height:.85cqw;width:15cqw;background:var(--accent)}
+.slide.dark .bar{background:#F7F6F2}
+.slide h4{font-family:var(--font-display);font-weight:var(--dw);font-size:4.2cqw;line-height:1.12;margin:0}
+.slide ul{margin:3.4cqw 0 0;padding:0;list-style:none;display:grid;gap:1.9cqw}
+.slide li{display:flex;gap:1.8cqw;font-size:2.3cqw;line-height:1.35;color:var(--ink-soft)}
+.slide.dark li{color:rgba(247,246,242,.85)}
+.slide li i{width:.7cqw;height:.7cqw;border-radius:999px;background:var(--accent);margin-top:1.1cqw;flex:none}
+.slide .refs{position:absolute;left:7cqw;bottom:2.6cqw;font-size:1.25cqw;color:var(--ink-faint)}
+.slide .pg{position:absolute;right:7cqw;bottom:2.6cqw;font-size:1.45cqw;color:var(--ink-faint)}
+.slide .ct{font-family:var(--font-display);font-weight:var(--dw);font-size:6.8cqw;line-height:1.02}
+.slide .cr{width:11cqw;height:.9cqw;background:var(--accent);margin-bottom:3.2cqw}
+.slide.dark .cr{background:#F7F6F2}
+.slide .sub{font-size:2.5cqw;color:var(--ink-faint);margin-top:2.6cqw}
+.slide.dark .sub{color:rgba(247,246,242,.8)}
+.slide .photo{position:absolute;inset:0 0 0 auto;width:41cqw;background:linear-gradient(135deg,#93a7b1,#5f7885)}
+.slide .photo::after{content:"";position:absolute;inset:0 auto 0 0;width:9cqw;background:linear-gradient(to right,var(--slide-bg),transparent)}
+.slide .cover-photo{position:absolute;inset:0;background:linear-gradient(135deg,#8fa3ad,#41565f)}
+.slide .scrim{position:absolute;inset:0;background:linear-gradient(to top,rgba(8,16,24,.94) 8%,rgba(8,16,24,.72) 42%,rgba(8,16,24,.3) 78%,rgba(8,16,24,.18) 100%)}
+
+.notes-h{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint)}
+.notes-b{font-size:14px;color:var(--ink-soft);line-height:1.5}
+
+/* ===== phase bar ===== */
+.phase{display:flex;align-items:center;gap:8px;font-size:11px;margin-top:3px}
+.phase .done{color:var(--ink-faint)}
+.phase .now{color:var(--accent);font-weight:600}
+.phase .todo{color:var(--ink-faint);opacity:.5}
+.phase .ln{width:18px;height:1px;background:var(--rule)}
+.phase .ln.on{background:var(--accent);opacity:.45}
+.skel{border:1px dashed var(--rule);border-radius:6px;aspect-ratio:16/9;position:relative;overflow:hidden;background:var(--surface)}
+.skel::before{content:"";position:absolute;left:0;top:0;height:3px;width:16%;background:var(--rule)}
+.skel .l{position:absolute;height:7%;border-radius:99px;background:var(--rule);opacity:.7}
+
+/* ===== chat / edição ===== */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--rule);border-radius:18px 18px 0 0;box-shadow:0 -12px 40px -18px rgba(0,0,0,.4);display:flex;flex-direction:column}
+.grab{width:36px;height:4px;border-radius:99px;background:var(--rule);margin:8px auto 0}
+.bubble{max-width:82%;border-radius:16px;padding:9px 12px;font-size:13.5px;line-height:1.45}
+.bubble.me{margin-left:auto;background:var(--ink);color:var(--paper)}
+.bubble.ai{background:var(--paper);border:1px solid var(--rule);color:var(--ink-soft)}
+.composer{display:flex;gap:8px;padding:10px;border-top:1px solid var(--rule)}
+.composer .f{flex:1;border:1px solid var(--rule);border-radius:12px;background:var(--paper);padding:9px 11px;font-size:13.5px;color:var(--ink-faint)}
+.send{width:38px;height:38px;border-radius:12px;background:var(--ink);color:var(--paper);display:grid;place-items:center}
+
+.editing{outline:2px solid color-mix(in srgb,var(--accent) 45%,transparent);background:color-mix(in srgb,var(--accent) 8%,transparent);border-radius:3px}
+.caret{display:inline-block;width:1.5px;height:1em;background:var(--accent);vertical-align:-.15em;animation:bl 1s steps(1) infinite}
+@keyframes bl{50%{opacity:0}}
+
+.opt{border:1px solid var(--rule);border-radius:var(--radius-lg);background:var(--surface);padding:20px;box-shadow:var(--shadow)}
+.opt h3{font-size:17px;margin-bottom:4px}
+.opt .tag{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--accent-tint);color:var(--accent-deep);margin-bottom:10px}
+.pros{font-size:13px;margin:10px 0 0;padding-left:16px;color:var(--ink-soft)}
+.pros li{margin-bottom:3px}
+.rec{background:var(--accent-tint);border-left:3px solid var(--accent);padding:16px;border-radius:var(--radius);margin-top:24px}
+.optgrid{display:grid;gap:28px;grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-inner">
+  <span class="brand"><i></i> Telas e interações</span>
+  <span class="links"><a href="system.html">← tokens e componentes</a></span>
+  <div class="picker" id="picker">
+    <button data-t="clinico" aria-pressed="true">1 · Clínico</button>
+    <button data-t="congresso" aria-pressed="false">2 · Congresso</button>
+    <button data-t="residencia" aria-pressed="false">3 · Residência</button>
+    <button data-t="precisao" aria-pressed="false">4 · Precisão</button>
+  </div>
+</div></div>
+
+<div class="wrap">
+
+<div class="section">
+  <h2>Telas reais, nos dois tamanhos</h2>
+  <p class="lede">Reconstruções em escala: o desktop é renderizado a 1440×900 e o celular a 390×844, ambos reduzidos por <code>transform</code> — as proporções e os tamanhos de tipo são os de verdade, não uma aproximação desenhada. Troque o tema no topo e as telas trocam junto.</p>
+</div>
+
+<!-- 1. GERANDO -->
+<div class="section">
+  <h3 style="font-size:19px;margin-bottom:6px">1 · Gerando</h3>
+  <p class="note" style="margin-bottom:18px">Barra de fases, esqueletos no lugar dos slides que faltam, ações bloqueadas até terminar.</p>
+  <div class="devices">
+    <div class="mac">
+      <div class="device-label">desktop · 1440×900</div>
+      <div class="shell">
+        <div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="urlbar">medslides.vercel.app</span></div>
+        <div class="viewport"><div class="scaler"><div class="app">
+          <div class="hdr">
+            <div style="flex:1;min-width:0">
+              <div class="t">Manejo Inicial da Sepse</div>
+              <div class="phase"><span class="done">✓ Escrevendo</span><span class="ln on"></span><span class="now">● Referências</span><span class="ln"></span><span class="todo">Imagens</span></div>
+            </div>
+            <span class="ico">↑</span><span class="ico">+</span><span class="ico">↓</span>
+            <button class="btn btn-primary" style="opacity:.4">Apresentar</button>
+          </div>
+          <div style="display:flex;flex:1;overflow:hidden">
+            <div class="rail">
+              <div class="thumb active"><span class="n">1</span><span class="s"><div class="slide dark" style="border-radius:0"><div class="cover-photo"></div><div class="scrim"></div><div class="pad" style="justify-content:flex-end"><div class="cr"></div><div class="ct">Manejo Inicial da Sepse</div></div></div></span></div>
+              <div class="thumb"><span class="n">2</span><span class="s"><div class="slide" style="border-radius:0"><div class="bar"></div><div class="pad"><h4>Sepse é disfunção orgânica</h4><ul><li><i></i><span>SOFA ≥ 2 define</span></li><li><i></i><span>qSOFA para triagem</span></li></ul></div></div></span></div>
+              <div class="thumb"><span class="n">3</span><span class="s"><div class="skel" style="border-radius:0"><div class="l" style="left:8%;top:38%;width:60%"></div><div class="l" style="left:8%;top:52%;width:78%"></div></div></span></div>
+              <div class="thumb"><span class="n">4</span><span class="s"><div class="skel" style="border-radius:0"><div class="l" style="left:8%;top:38%;width:52%"></div><div class="l" style="left:8%;top:52%;width:70%"></div></div></span></div>
+            </div>
+            <div class="stage">
+              <div style="width:100%;max-width:760px"><div class="slide dark"><div class="cover-photo"></div><div class="scrim"></div><div class="pad" style="justify-content:flex-end"><div class="cr"></div><div class="ct">Manejo Inicial da Sepse</div><div class="sub">Abordagem no pronto-socorro</div></div></div></div>
+              <div style="width:100%;max-width:760px">
+                <div class="notes-h">Notas do apresentador</div>
+                <div class="notes-b" style="margin-top:6px">Bem-vindos. O objetivo é revisar as condutas das primeiras horas, onde a diferença de desfecho é maior.</div>
+                <div class="notes-b" style="margin-top:14px;color:var(--ink-faint)">Buscando estudos no PubMed…</div>
+              </div>
+            </div>
+          </div>
+        </div></div></div>
+      </div>
+    </div>
+
+    <div class="iphone">
+      <div class="device-label">iPhone · 390×844</div>
+      <div class="shell"><div class="screen"><div class="island"></div><div class="scaler"><div class="app">
+        <div class="statusbar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+        <div class="hdr" style="padding:8px 14px">
+          <div style="flex:1;min-width:0">
+            <div class="t" style="font-size:17px">Manejo Inicial da…</div>
+            <div class="phase"><span class="done">✓</span><span class="ln on"></span><span class="now">● Referências</span><span class="ln"></span><span class="todo">Imagens</span></div>
+          </div>
+          <span class="ico">↑</span><span class="ico">↓</span>
+          <button class="btn btn-primary" style="padding:8px 12px;font-size:13px;opacity:.4">Apresentar</button>
+        </div>
+        <div style="padding:14px;display:flex;flex-direction:column;gap:14px">
+          <div class="slide dark"><div class="cover-photo"></div><div class="scrim"></div><div class="pad" style="justify-content:flex-end"><div class="cr"></div><div class="ct">Manejo Inicial da Sepse</div><div class="sub">Abordagem no pronto-socorro</div></div></div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span class="ico" style="border-color:var(--rule)">‹</span>
+            <span class="note">1 / 12</span>
+            <span class="ico" style="border-color:var(--rule)">›</span>
+          </div>
+          <div style="display:flex;gap:10px;overflow:hidden">
+            <div style="width:120px;flex:none"><div class="slide dark" style="border-radius:6px"><div class="cover-photo"></div><div class="scrim"></div></div></div>
+            <div style="width:120px;flex:none"><div class="skel"><div class="l" style="left:8%;top:40%;width:60%"></div></div></div>
+            <div style="width:120px;flex:none"><div class="skel"><div class="l" style="left:8%;top:40%;width:52%"></div></div></div>
+          </div>
+          <div>
+            <div class="notes-h">Notas do apresentador</div>
+            <div class="notes-b" style="margin-top:6px">Bem-vindos. O objetivo é revisar as condutas das primeiras horas.</div>
+            <div class="notes-b" style="margin-top:10px;color:var(--ink-faint)">Buscando estudos no PubMed…</div>
+          </div>
+        </div>
+      </div></div><div class="homebar"></div></div></div>
+    </div>
+  </div>
+</div>
+
+<hr class="hr" />
+
+<!-- 2. PRONTA -->
+<div class="section">
+  <h3 style="font-size:19px;margin-bottom:6px">2 · Pronta</h3>
+  <p class="note" style="margin-bottom:18px">Contagem de referências no lugar da barra de fases; ações liberadas; bibliografia ao pé.</p>
+  <div class="devices">
+    <div class="mac">
+      <div class="device-label">desktop</div>
+      <div class="shell">
+        <div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="urlbar">medslides.vercel.app</span></div>
+        <div class="viewport"><div class="scaler"><div class="app">
+          <div class="hdr">
+            <div style="flex:1;min-width:0"><div class="t">Manejo Inicial da Sepse</div><div class="m">12 slides · Residentes e internos · 11 referências</div></div>
+            <span class="ico">↑</span><span class="ico">+</span><span class="ico">↓</span><span class="ico">✎</span>
+            <button class="btn btn-primary">Apresentar</button>
+          </div>
+          <div style="display:flex;flex:1;overflow:hidden">
+            <div class="rail">
+              <div class="thumb"><span class="n">4</span><span class="s"><div class="slide" style="border-radius:0"><div class="bar"></div><div class="photo"></div><div class="pad" style="padding-right:46cqw"><h4>Antibiótico na 1ª hora</h4></div></div></span></div>
+              <div class="thumb active"><span class="n">5</span><span class="s"><div class="slide" style="border-radius:0"><div class="bar"></div><div class="photo"></div><div class="pad" style="padding-right:46cqw"><h4>Antibiótico na 1ª hora reduz mortalidade</h4><ul><li><i></i><span>Culturas antes, sem atrasar</span></li></ul></div></div></span></div>
+              <div class="thumb"><span class="n">6</span><span class="s"><div class="slide dark" style="border-radius:0"><div class="pad" style="justify-content:center"><div style="font-family:var(--font-display);font-size:11cqw;line-height:.95">7,6%</div></div></div></span></div>
+            </div>
+            <div class="stage">
+              <div style="width:100%;max-width:760px"><div class="slide">
+                <div class="bar"></div><div class="photo"></div>
+                <div class="pad" style="padding-right:46cqw">
+                  <h4>Antibiótico na 1ª hora reduz mortalidade</h4>
+                  <ul><li><i></i><span>Coletar culturas antes, sem atrasar</span></li><li><i></i><span>Amplo espectro conforme o foco</span></li><li><i></i><span>Reavaliar em 48–72 h</span></li></ul>
+                </div>
+                <div class="refs">5. Rhodes A, et al. Intensive Care Med. 2017. PMID 28101605</div>
+                <div class="pg">5 / 12</div>
+              </div></div>
+              <div style="width:100%;max-width:760px">
+                <div class="notes-h">Notas do apresentador</div>
+                <div class="notes-b" style="margin-top:6px">Cada hora de atraso aumenta a mortalidade. A escolha inicial é empírica e pode ser ajustada depois.</div>
+                <div style="margin-top:14px;border:1px solid var(--rule);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;font-size:14px">
+                  <span>Estudos usados nesta apresentação</span>
+                  <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--accent-tint);color:var(--accent-deep)">11</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div></div></div>
+      </div>
+    </div>
+
+    <div class="iphone">
+      <div class="device-label">iPhone</div>
+      <div class="shell"><div class="screen"><div class="island"></div><div class="scaler"><div class="app">
+        <div class="statusbar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+        <div class="hdr" style="padding:8px 14px">
+          <div style="flex:1;min-width:0"><div class="t" style="font-size:17px">Manejo Inicial da…</div><div class="m">12 slides · 11 referências</div></div>
+          <span class="ico">↑</span><span class="ico">✎</span>
+          <button class="btn btn-primary" style="padding:8px 12px;font-size:13px">Apresentar</button>
+        </div>
+        <div style="padding:14px;display:flex;flex-direction:column;gap:14px">
+          <div class="slide"><div class="bar"></div><div class="photo"></div><div class="pad" style="padding-right:46cqw"><h4>Antibiótico na 1ª hora reduz mortalidade</h4><ul><li><i></i><span>Culturas antes, sem atrasar</span></li><li><i></i><span>Amplo espectro</span></li></ul></div><div class="refs">5. Rhodes A, et al. 2017</div></div>
+          <div style="display:flex;align-items:center;justify-content:space-between"><span class="ico" style="border-color:var(--rule)">‹</span><span class="note">5 / 12</span><span class="ico" style="border-color:var(--rule)">›</span></div>
+          <div style="display:flex;gap:10px;overflow:hidden">
+            <div style="width:120px;flex:none"><div class="slide" style="border-radius:6px;border-color:var(--accent)"><div class="bar"></div><div class="photo"></div></div></div>
+            <div style="width:120px;flex:none"><div class="slide dark" style="border-radius:6px"><div class="pad" style="justify-content:center"><div style="font-family:var(--font-display);font-size:11cqw">7,6%</div></div></div></div>
+          </div>
+          <div><div class="notes-h">Notas do apresentador</div><div class="notes-b" style="margin-top:6px">Cada hora de atraso aumenta a mortalidade.</div></div>
+        </div>
+      </div></div><div class="homebar"></div></div></div>
+    </div>
+  </div>
+</div>
+
+<hr class="hr" />
+
+<!-- OPÇÕES: EDITAR COM IA -->
+<div class="section">
+  <h2>Opções — “Editar com IA”</h2>
+  <p class="lede">Três formas de colocar a IA na frente de um deck pronto. A diferença real não é estética: é onde fica o foco enquanto a pessoa escreve o pedido, e se ela consegue apontar para um slide específico.</p>
+
+  <div class="optgrid">
+
+    <div class="opt">
+      <span class="tag">A · implementado hoje</span>
+      <h3>Painel fixo</h3>
+      <p class="note" style="margin-bottom:14px">Barra lateral no desktop, gaveta de baixo no celular. Conversa persistente, sempre no mesmo lugar.</p>
+      <div class="iphone" style="width:100%;max-width:293px;margin:0 auto">
+        <div class="shell"><div class="screen"><div class="island"></div><div class="scaler"><div class="app">
+          <div class="statusbar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="hdr" style="padding:8px 14px"><div style="flex:1"><div class="t" style="font-size:17px">Manejo Inicial…</div></div><span class="ico">✎</span><button class="btn btn-primary" style="padding:8px 12px;font-size:13px">Apresentar</button></div>
+          <div style="padding:14px"><div class="slide"><div class="bar"></div><div class="pad"><h4>Antibiótico na 1ª hora</h4></div></div></div>
+          <div style="position:absolute;inset:0;background:rgba(14,27,42,.35)"></div>
+          <div class="sheet" style="height:60%">
+            <div class="grab"></div>
+            <div style="padding:12px 16px;border-bottom:1px solid var(--rule);display:flex;align-items:center">
+              <div style="flex:1"><b style="font-size:14px">Editar com IA</b><div class="note">Peça mudanças em português</div></div><span class="ico">✕</span>
+            </div>
+            <div style="flex:1;padding:14px;display:flex;flex-direction:column;gap:10px">
+              <div class="bubble me">Deixe o slide 5 mais curto</div>
+              <div class="bubble ai">Reduzi para três tópicos e encurtei o título.</div>
+            </div>
+            <div class="composer"><div class="f">Ex.: adicione um slide sobre doses</div><div class="send">↑</div></div>
+          </div>
+        </div></div><div class="homebar"></div></div></div>
+      </div>
+      <ul class="pros">
+        <li><b>A favor:</b> histórico visível; dá para encadear pedidos; um só lugar para aprender.</li>
+        <li><b>Contra:</b> no celular cobre o slide, então você não vê a mudança acontecer.</li>
+      </ul>
+    </div>
+
+    <div class="opt">
+      <span class="tag">B · alternativa</span>
+      <h3>Barra de comando</h3>
+      <p class="note" style="margin-bottom:14px">Um campo flutuante (⌘K) sobre o deck. Sem histórico na tela: você pede, vê aplicar, ele some.</p>
+      <div class="iphone" style="width:100%;max-width:293px;margin:0 auto">
+        <div class="shell"><div class="screen"><div class="island"></div><div class="scaler"><div class="app">
+          <div class="statusbar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="hdr" style="padding:8px 14px"><div style="flex:1"><div class="t" style="font-size:17px">Manejo Inicial…</div></div><span class="ico">✎</span><button class="btn btn-primary" style="padding:8px 12px;font-size:13px">Apresentar</button></div>
+          <div style="padding:14px"><div class="slide"><div class="bar"></div><div class="pad"><h4>Antibiótico na 1ª hora reduz mortalidade</h4><ul><li><i></i><span>Culturas antes, sem atrasar</span></li><li><i></i><span>Amplo espectro conforme o foco</span></li></ul></div></div></div>
+          <div style="position:absolute;left:14px;right:14px;bottom:78px">
+            <div style="background:var(--surface);border:1px solid var(--rule);border-radius:14px;box-shadow:0 18px 44px -20px rgba(0,0,0,.45);overflow:hidden">
+              <div style="display:flex;gap:8px;padding:12px 14px;align-items:center">
+                <span style="color:var(--accent)">✦</span>
+                <span style="font-size:14px">Deixe este slide mais curto<span class="caret"></span></span>
+              </div>
+              <div style="border-top:1px solid var(--rule);padding:8px 14px;display:flex;flex-direction:column;gap:6px">
+                <div class="note">↩ aplicar no slide 5</div>
+                <div class="note">⌥↩ aplicar no deck inteiro</div>
+              </div>
+            </div>
+          </div>
+        </div></div><div class="homebar"></div></div></div>
+      </div>
+      <ul class="pros">
+        <li><b>A favor:</b> o slide fica visível; a mudança acontece na sua frente; rápido no teclado.</li>
+        <li><b>Contra:</b> sem histórico, refazer um pedido é redigitar; pior para conversas de várias voltas.</li>
+      </ul>
+    </div>
+
+    <div class="opt">
+      <span class="tag">C · alternativa</span>
+      <h3>Ancorado no slide</h3>
+      <p class="note" style="margin-bottom:14px">Um botão por slide abre um balão preso a ele. O escopo é o slide — não é preciso dizer “o slide 5”.</p>
+      <div class="iphone" style="width:100%;max-width:293px;margin:0 auto">
+        <div class="shell"><div class="screen"><div class="island"></div><div class="scaler"><div class="app">
+          <div class="statusbar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="hdr" style="padding:8px 14px"><div style="flex:1"><div class="t" style="font-size:17px">Manejo Inicial…</div></div><button class="btn btn-primary" style="padding:8px 12px;font-size:13px">Apresentar</button></div>
+          <div style="padding:14px;position:relative">
+            <div class="slide"><div class="bar"></div><div class="pad"><h4>Antibiótico na 1ª hora reduz mortalidade</h4><ul><li><i></i><span>Culturas antes, sem atrasar</span></li></ul></div>
+              <div style="position:absolute;right:2cqw;top:2cqw;width:9cqw;height:9cqw;border-radius:99px;background:var(--accent);color:var(--paper);display:grid;place-items:center;font-size:4cqw">✦</div>
+            </div>
+            <div style="margin-top:10px;background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:12px;box-shadow:var(--shadow)">
+              <div class="note" style="margin-bottom:8px">Editando o slide 5</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px">
+                <span class="btn btn-sec" style="padding:6px 10px;font-size:12px">Encurtar</span>
+                <span class="btn btn-sec" style="padding:6px 10px;font-size:12px">Mais técnico</span>
+                <span class="btn btn-sec" style="padding:6px 10px;font-size:12px">Virar diagrama</span>
+              </div>
+              <div class="composer" style="border:0;padding:10px 0 0"><div class="f">ou escreva o pedido…</div><div class="send">↑</div></div>
+            </div>
+          </div>
+        </div></div><div class="homebar"></div></div></div>
+      </div>
+      <ul class="pros">
+        <li><b>A favor:</b> escopo óbvio; atalhos cobrem os pedidos mais comuns sem digitar; ótimo no toque.</li>
+        <li><b>Contra:</b> não serve para pedido de deck inteiro (“padronize os títulos”); mais botão na tela.</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="rec">
+    <b>Recomendação: C sobre A, mantendo o A.</b> O padrão dominante de uso é “conserta este slide aqui”, e é exatamente onde o painel fixo é pior — no celular ele tapa justamente o slide que a pessoa quer ver mudar. Os três atalhos (<i>encurtar, mais técnico, virar diagrama</i>) resolvem a maioria dos pedidos sem teclado, o que importa muito no toque. Manter o painel fixo para o que é do deck inteiro. <b>B eu descartaria:</b> perder o histórico é caro num editor em que a pessoa acerta por tentativa.
+  </div>
+</div>
+
+<hr class="hr" />
+
+<!-- OPÇÕES: EDIÇÃO DE TEXTO -->
+<div class="section">
+  <h2>Opções — edição de texto</h2>
+  <p class="lede">O texto do slide precisa ser corrigível sem passar pela IA. A escolha aqui é entre editar onde o texto está e editar num formulário ao lado.</p>
+
+  <div class="optgrid">
+
+    <div class="opt">
+      <span class="tag">A · implementado hoje</span>
+      <h3>Toque e edite no lugar</h3>
+      <p class="note" style="margin-bottom:14px">O texto do slide vira editável onde está, com a mesma tipografia e o mesmo tamanho.</p>
+      <div class="mac" style="width:100%">
+        <div class="shell" style="width:100%;height:auto;aspect-ratio:16/10">
+          <div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="urlbar">medslides.vercel.app</span></div>
+          <div style="padding:22px">
+            <div class="slide"><div class="bar"></div>
+              <div class="pad">
+                <h4><span class="editing">Antibiótico na 1ª hora reduz mortalidade</span><span class="caret"></span></h4>
+                <ul><li><i></i><span>Coletar culturas antes, sem atrasar</span></li><li><i></i><span>Amplo espectro conforme o foco</span></li></ul>
+              </div>
+            </div>
+            <div class="note" style="margin-top:8px">Toque em qualquer texto do slide para editar.</div>
+          </div>
+        </div>
+      </div>
+      <ul class="pros">
+        <li><b>A favor:</b> você vê exatamente o resultado, no tamanho real; zero navegação.</li>
+        <li><b>Contra:</b> texto pequeno vira alvo pequeno; não dá para reordenar nem apagar um tópico.</li>
+      </ul>
+    </div>
+
+    <div class="opt">
+      <span class="tag">B · alternativa</span>
+      <h3>Barra ao selecionar</h3>
+      <p class="note" style="margin-bottom:14px">Tocar num tópico seleciona o bloco e abre uma barra flutuante com as ações que faltam hoje.</p>
+      <div class="mac" style="width:100%">
+        <div class="shell" style="width:100%;height:auto;aspect-ratio:16/10">
+          <div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="urlbar">medslides.vercel.app</span></div>
+          <div style="padding:22px;position:relative">
+            <div class="slide"><div class="bar"></div>
+              <div class="pad">
+                <h4>Antibiótico na 1ª hora reduz mortalidade</h4>
+                <ul><li><i></i><span class="editing">Coletar culturas antes, sem atrasar</span></li><li><i></i><span>Amplo espectro conforme o foco</span></li></ul>
+              </div>
+            </div>
+            <div style="position:absolute;left:36%;top:52%;background:var(--ink);color:var(--paper);border-radius:10px;display:flex;gap:2px;padding:4px;box-shadow:0 12px 30px -12px rgba(0,0,0,.5)">
+              <span style="padding:5px 9px;font-size:12px">✎ Editar</span>
+              <span style="padding:5px 9px;font-size:12px;opacity:.75">↑</span>
+              <span style="padding:5px 9px;font-size:12px;opacity:.75">↓</span>
+              <span style="padding:5px 9px;font-size:12px;opacity:.75">✕</span>
+              <span style="padding:5px 9px;font-size:12px;opacity:.75">✦ IA</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ul class="pros">
+        <li><b>A favor:</b> reordenar e apagar tópico, que hoje é impossível; ponte natural para a IA por bloco.</li>
+        <li><b>Contra:</b> um toque a mais antes de digitar; barra flutuante é chata de posicionar no celular.</li>
+      </ul>
+    </div>
+
+    <div class="opt">
+      <span class="tag">C · alternativa</span>
+      <h3>Inspetor lateral</h3>
+      <p class="note" style="margin-bottom:14px">Formulário com todos os campos do slide ao lado. O slide vira só a pré-visualização.</p>
+      <div class="mac" style="width:100%">
+        <div class="shell" style="width:100%;height:auto;aspect-ratio:16/10">
+          <div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="urlbar">medslides.vercel.app</span></div>
+          <div style="display:flex;height:calc(100% - 34px)">
+            <div style="flex:1;padding:22px"><div class="slide"><div class="bar"></div><div class="pad"><h4>Antibiótico na 1ª hora reduz mortalidade</h4><ul><li><i></i><span>Coletar culturas antes</span></li></ul></div></div></div>
+            <div style="width:38%;border-left:1px solid var(--rule);padding:16px;background:var(--surface);display:flex;flex-direction:column;gap:10px">
+              <div class="note">Slide 5 · tópicos</div>
+              <div><div class="note" style="margin-bottom:4px">Título</div><div style="border:1px solid var(--accent);border-radius:8px;padding:8px;font-size:12px">Antibiótico na 1ª hora reduz…</div></div>
+              <div><div class="note" style="margin-bottom:4px">Tópicos</div>
+                <div style="border:1px solid var(--rule);border-radius:8px;padding:8px;font-size:12px;margin-bottom:5px">⠿ Coletar culturas antes</div>
+                <div style="border:1px solid var(--rule);border-radius:8px;padding:8px;font-size:12px">⠿ Amplo espectro</div>
+              </div>
+              <div><div class="note" style="margin-bottom:4px">Layout</div><div style="border:1px solid var(--rule);border-radius:8px;padding:8px;font-size:12px">tópicos ▾</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ul class="pros">
+        <li><b>A favor:</b> tudo editável, inclusive trocar o layout; arrastar para reordenar; alvos grandes.</li>
+        <li><b>Contra:</b> vira editor de formulário — some a sensação de mexer no slide; ruim no celular.</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="rec">
+    <b>Recomendação: A + B.</b> Manter a edição no lugar, que é a que dá a sensação certa, e somar a barra de seleção — ela cobre exatamente o buraco de hoje (não dá para reordenar nem apagar um tópico) e é o gancho natural para “✦ IA” num bloco só. <b>C só faria sentido</b> se aparecer troca de layout e reordenação de slides; aí ele deixa de ser alternativa e vira uma tela à parte, de estrutura do deck.
+  </div>
+</div>
+
+<hr class="hr" />
+
+<div class="section">
+  <h2>Apresentando</h2>
+  <p class="lede">A tela onde o produto é julgado: sala escura, telefone na mão, nada além do slide.</p>
+  <div class="devices">
+    <div class="iphone">
+      <div class="device-label">iPhone · retrato</div>
+      <div class="shell"><div class="screen" style="background:#0a141e"><div class="island"></div><div class="scaler"><div style="height:872px;background:#0a141e;display:flex;flex-direction:column">
+        <div style="flex:1;display:flex;align-items:center"><div style="width:100%"><div class="slide dark" style="border-radius:0"><div class="cover-photo"></div><div class="scrim"></div><div class="pad" style="justify-content:flex-end"><div class="cr"></div><div class="ct">Manejo Inicial da Sepse</div><div class="sub">Abordagem no pronto-socorro</div></div></div></div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0 14px 28px">
+          <span class="ico" style="border:1px solid rgba(247,246,242,.2);color:rgba(247,246,242,.75);width:44px;height:44px">✕</span>
+          <div style="display:flex;align-items:center;gap:10px;color:rgba(247,246,242,.7);font-size:14px">
+            <span class="ico" style="border:1px solid rgba(247,246,242,.2);color:rgba(247,246,242,.75);width:44px;height:44px">‹</span>
+            <span>1 / 12</span>
+            <span class="ico" style="border:1px solid rgba(247,246,242,.2);color:rgba(247,246,242,.75);width:44px;height:44px">›</span>
+          </div>
+          <span class="ico" style="border:1px solid rgba(247,246,242,.2);color:rgba(247,246,242,.75);width:44px;height:44px">≡</span>
+        </div>
+      </div></div><div class="homebar" style="background:#F7F6F2"></div></div></div>
+    </div>
+
+    <div class="iphone">
+      <div class="device-label">iPhone · com notas abertas</div>
+      <div class="shell"><div class="screen" style="background:#0a141e"><div class="island"></div><div class="scaler"><div style="height:872px;background:#0a141e;display:flex;flex-direction:column">
+        <div style="flex:1;display:flex;align-items:center"><div style="width:100%"><div class="slide" style="border-radius:0"><div class="bar"></div><div class="photo"></div><div class="pad" style="padding-right:46cqw"><h4>Antibiótico na 1ª hora reduz mortalidade</h4><ul><li><i></i><span>Culturas antes, sem atrasar</span></li></ul></div></div></div></div>
+        <div style="max-height:38%;overflow:hidden;border-top:1px solid rgba(247,246,242,.15);background:#0e1b28;padding:14px 18px">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:rgba(247,246,242,.45)">Notas</div>
+          <div style="margin-top:6px;font-size:15px;line-height:1.5;color:rgba(247,246,242,.8)">Cada hora de atraso aumenta a mortalidade. A escolha inicial é empírica e pode ser ajustada com a cultura.</div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px 28px">
+          <span class="ico" style="border:1px solid rgba(247,246,242,.2);color:rgba(247,246,242,.75);width:44px;height:44px">✕</span>
+          <div style="display:flex;align-items:center;gap:10px;color:rgba(247,246,242,.7);font-size:14px">
+            <span class="ico" style="border:1px solid rgba(247,246,242,.2);color:rgba(247,246,242,.75);width:44px;height:44px">‹</span>
+            <span>5 / 12</span>
+            <span class="ico" style="border:1px solid rgba(247,246,242,.2);color:rgba(247,246,242,.75);width:44px;height:44px">›</span>
+          </div>
+          <span class="ico" style="border:1px solid rgba(247,246,242,.6);background:rgba(247,246,242,.15);color:#F7F6F2;width:44px;height:44px">≡</span>
+        </div>
+      </div></div><div class="homebar" style="background:#F7F6F2"></div></div></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+document.getElementById("picker").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  document.documentElement.dataset.theme=b.dataset.t;
+  [...e.currentTarget.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+});
+</script>
+</body>
+</html>
