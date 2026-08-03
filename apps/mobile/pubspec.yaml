@@ -1,0 +1,76 @@
+name: medslides_mobile
+description: MedSlides — generate, edit and present a medical deck from your phone.
+publish_to: 'none'
+
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Convex realtime client. Vendored from Panda Code, which carries a patched
+  # fork because upstream needs project-specific fixes for mutation encoding.
+  # Do not swap it for the published pub package.
+  #
+  # This is what makes a generation *stream* onto the phone: the deck document
+  # is written slide by slide server-side and the subscription pushes each
+  # revision. Polling an HTTP endpoint would show a blank screen and then a
+  # finished deck, which is the entire experience gone.
+  convex_flutter:
+    path: packages/convex_flutter
+
+  flutter_riverpod: ^2.6.1
+
+  # The anonymous client id lives in the keychain, which survives a reinstall.
+  # It is the only thing that ties a user to their decks — there are no
+  # accounts — so losing it means losing every deck they have made.
+  flutter_secure_storage: ^9.2.2
+  uuid: ^4.5.1
+
+  # Hands a file to the iOS share sheet, which is where "save to Files",
+  # AirDrop and Mail live. There is no user-writable filesystem to target
+  # directly on iOS, so this is the export destination.
+  share_plus: ^10.1.4
+  path_provider: ^2.1.4
+
+  # Opens the deck on the web when a job belongs there rather than here.
+  url_launcher: ^6.3.1
+
+  # Keeps the screen awake while presenting. A phone that locks itself in the
+  # middle of a talk is the single worst thing this app could do.
+  wakelock_plus: ^1.2.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+  fonts:
+    # Bundled rather than fetched at runtime. A congress hall has famously bad
+    # wifi, and a deck that renders in a fallback face is not the deck the
+    # doctor approved on their laptop.
+    - family: InstrumentSerif
+      fonts:
+        - asset: assets/fonts/InstrumentSerif-Regular.ttf
+    # One variable file covers every weight the app asks for. Google Fonts no
+    # longer ships static IBM Plex Sans instances, and Flutter resolves weights
+    # against a variable face natively.
+    - family: IBMPlexSans
+      fonts:
+        - asset: assets/fonts/IBMPlexSans-Variable.ttf
+
+flutter_launcher_icons:
+  image_path: assets/app-icon.png
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  background_color_ios: '#F7F6F2'
