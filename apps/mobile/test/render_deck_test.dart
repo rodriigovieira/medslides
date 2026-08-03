@@ -59,8 +59,15 @@ void main() {
 
       final boundary =
           key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-      final image = await boundary.toImage(pixelRatio: 2);
-      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      // Both the raster and the PNG encode are real async work on the engine,
+      // and the widget-test binding runs on a fake clock that never advances
+      // to complete them. Awaiting them directly rendered the first slide and
+      // then hung for the full ten-minute test timeout on the second.
+      // `runAsync` is the escape hatch to real time for exactly this.
+      final bytes = await tester.runAsync(() async {
+        final image = await boundary.toImage(pixelRatio: 2);
+        return image.toByteData(format: ui.ImageByteFormat.png);
+      });
       final layout = deck.slides[i].layout.name;
       File('${out.path}/${(i + 1).toString().padLeft(2, '0')}-$layout.png')
           .writeAsBytesSync(bytes!.buffer.asUint8List());
