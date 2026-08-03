@@ -1,0 +1,8 @@
+# The Flutter app is not part of the web deploy. Its build directory alone is
+# over a gigabyte of compiled Rust and iOS artefacts, which blew Vercel's 100 MB
+# upload limit the first time the two lived in one repo — the web deploy failed
+# while `git push` succeeded, so the fix shipped to GitHub and not to production.
+apps/
+
+# Local evidence and scratch output.
+.review-artifacts/
