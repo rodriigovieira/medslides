@@ -249,6 +249,69 @@ export const attachReferences = internalMutation({
   },
 });
 
+/**
+ * Adds sources for slides created after the deck was already numbered.
+ *
+ * Renumbering is not an option: the closing bibliography and every footnote
+ * already rendered point at the current numbers, and a deck whose footnote "3"
+ * silently starts meaning a different paper is worse than one with no footnote.
+ * So an existing PMID keeps its number and anything new is appended.
+ */
+export const mergeReferences = internalMutation({
+  args: {
+    deckId: v.id("decks"),
+    found: v.array(
+      v.object({
+        slideIndex: v.number(),
+        refs: v.array(
+          v.object({
+            pmid: v.string(),
+            title: v.string(),
+            authors: v.string(),
+            journal: v.string(),
+            year: v.string(),
+            url: v.string(),
+          }),
+        ),
+      }),
+    ),
+  },
+  handler: async (ctx, { deckId, found }) => {
+    const deck = await ctx.db.get(deckId);
+    if (!deck) return;
+
+    const references = [...(deck.references ?? [])];
+    const numberByPmid = new Map(references.map((r) => [r.pmid, r.n]));
+    const refsBySlide = new Map<number, number[]>();
+
+    for (const { slideIndex, refs } of found) {
+      const numbers: number[] = [];
+      for (const ref of refs) {
+        let n = numberByPmid.get(ref.pmid);
+        if (!n) {
+          n = references.reduce((max, r) => Math.max(max, r.n), 0) + 1;
+          numberByPmid.set(ref.pmid, n);
+          references.push({ ...ref, n });
+        }
+        numbers.push(n);
+      }
+      if (numbers.length > 0) refsBySlide.set(slideIndex, numbers);
+    }
+
+    const slides = deck.slides.map((slide, index) => {
+      const refs = refsBySlide.get(index);
+      return refs ? { ...slide, refs } : slide;
+    });
+    await ctx.db.patch(deckId, { references, slides });
+  },
+});
+
+/** Unchecked read for scheduled work that already ran the ownership check. */
+export const load = internalQuery({
+  args: { deckId: v.id("decks") },
+  handler: async (ctx, { deckId }) => await ctx.db.get(deckId),
+});
+
 const column = v.object({
   heading: v.string(),
   bullets: v.array(v.string()),

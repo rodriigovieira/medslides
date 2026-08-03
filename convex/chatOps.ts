@@ -17,17 +17,27 @@ type Op = {
   hub?: string;
   outcome?: string;
   nos?: Array<{ heading?: string; body?: string }>;
+  imageQuery?: string;
+  citationQuery?: string;
 };
 
 export const applyOps = internalMutation({
   args: { deckId: v.id("decks"), ops: v.string() },
   handler: async (ctx, { deckId, ops: raw }) => {
+    const empty = { applied: 0, refSlides: [], imageSlides: [] };
     const deck = await ctx.db.get(deckId);
-    if (!deck) return 0;
+    if (!deck) return empty;
 
     const ops = JSON.parse(raw) as Op[];
     let slides = [...deck.slides];
     let applied = 0;
+
+    // Slides whose photo or sources have to be (re)fetched afterwards. They're
+    // tracked by object identity rather than by index because the removals and
+    // insertions below move every index that follows them; the final positions
+    // are only knowable once the array has settled.
+    const needsPhoto = new Set<object>();
+    const needsRefs = new Set<object>();
 
     const index = (op: Op) => (op.slide ?? 0) - 1;
 
@@ -58,6 +68,27 @@ export const applyOps = internalMutation({
       applied++;
     }
 
+    // Photo swaps, still on the numbering the model was shown. Clearing the
+    // stored file is what makes this a *swap*: the slide renders text-only for
+    // the few seconds until the new photo lands, which reads as the change
+    // happening rather than as nothing having happened.
+    for (const op of ops.filter((o) => o.tipo === "imagem")) {
+      const i = index(op);
+      if (i < 0 || i >= slides.length) continue;
+      const query = op.imageQuery?.trim();
+      if (!query) continue;
+      const next = {
+        ...slides[i],
+        imageQuery: query,
+        imageStorageId: undefined,
+        imageUrl: undefined,
+        imageCredit: undefined,
+      };
+      slides[i] = next;
+      needsPhoto.add(next);
+      applied++;
+    }
+
     // Then removals, highest index first so earlier indexes stay valid.
     for (const op of ops
       .filter((o) => o.tipo === "remover")
@@ -81,20 +112,43 @@ export const applyOps = internalMutation({
         outcome: op.outcome,
         nodes: op.nos,
         notes: op.notas,
+        imageQuery: op.imageQuery,
+        citationQuery: op.citationQuery,
       });
       if (!candidate) continue;
       const at = Math.max(0, Math.min(slides.length, index(op)));
       slides.splice(at, 0, candidate);
+      // A slide added by chat starts bare. Left that way it sits next to slides
+      // that carry a photo and a footnote and reads as broken, so it queues for
+      // the same enrichment the generator runs.
+      if (candidate.citationQuery) needsRefs.add(candidate);
+      if (candidate.imageQuery) needsPhoto.add(candidate);
       applied++;
     }
 
-    if (applied === 0) return 0;
+    if (applied === 0) return empty;
     // 25 is the generator's own ceiling; keep the editor inside it.
     slides = slides.slice(0, 25);
     await ctx.db.patch(deckId, { slides });
-    return applied;
+
+    // Resolve the tracked slides to their settled positions; anything that fell
+    // off the 25-slide ceiling simply isn't there to enrich.
+    const positions = (tracked: Set<object>) =>
+      slides
+        .map((slide, i) => (tracked.has(slide) ? i : -1))
+        .filter((i) => i >= 0);
+
+    return {
+      applied,
+      refSlides: positions(needsRefs),
+      imageSlides: positions(needsPhoto),
+    };
   },
-  returns: v.number(),
+  returns: v.object({
+    applied: v.number(),
+    refSlides: v.array(v.number()),
+    imageSlides: v.array(v.number()),
+  }),
 });
 
 export const appendMessage = internalMutation({

@@ -9,9 +9,10 @@ import { getClientId } from "@/lib/session";
 export type ChatMessage = { role: "user" | "assistant"; text: string; at: number };
 
 const SUGGESTIONS = [
+  "Adicione 3 slides sobre contraindicações",
+  "No slide 4, enfatize a dose",
+  "Troque a imagem do slide 2",
   "Deixe o slide 3 mais curto",
-  "Adicione um slide sobre contraindicações",
-  "Troque o título da capa",
 ];
 
 /**
@@ -114,8 +115,8 @@ export function ChatPanel({
           {messages.length === 0 && (
             <div className="space-y-3">
               <p className="text-sm leading-relaxed text-ink-soft">
-                Diga o que quer mudar e eu ajusto os slides. Só mexo no que você
-                pedir.
+                Diga o que quer mudar e eu ajusto os slides — um slide, vários,
+                ou a imagem de um deles. Só mexo no que você pedir.
               </p>
               <div className="flex flex-wrap gap-2">
                 {SUGGESTIONS.map((s) => (

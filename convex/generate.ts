@@ -96,7 +96,13 @@ export const run = internalAction({
         deckId,
         phase: "imagens",
       });
-      await attachImages(ctx, deckId, parsed.slides, req.topic);
+      await attachImages(
+        ctx,
+        deckId,
+        parsed.slides,
+        req.topic,
+        slidesNeedingImages(parsed.slides),
+      );
 
       await ctx.runMutation(internal.decks.setPhase, {
         deckId,
@@ -116,6 +122,52 @@ export const run = internalAction({
       }
       await ctx.runMutation(internal.decks.fail, { deckId, error: message });
       throw error;
+    }
+  },
+});
+
+/**
+ * Fills in photos and references for slides the AI editor just touched.
+ *
+ * The generation pass enriches the whole deck once, which left everything the
+ * chat added afterwards bare: a slide with no photo and, worse, no reference,
+ * sitting next to slides that have both. It runs scheduled rather than inline
+ * because PubMed and the stock search together take longer than anyone wants to
+ * watch a chat spinner — the slides are already on screen, and the photo and the
+ * footnote land on them a few seconds later through the same reactive query that
+ * drew them.
+ */
+export const enrich = internalAction({
+  args: {
+    deckId: v.id("decks"),
+    /** Slides that need references looked up (typically newly added ones). */
+    slideIndexes: v.array(v.number()),
+    /** Slides that must get a photo, budget rules bypassed — asked for by name. */
+    imageIndexes: v.array(v.number()),
+  },
+  handler: async (ctx, { deckId, slideIndexes, imageIndexes }) => {
+    const deck = await ctx.runQuery(internal.decks.load, { deckId });
+    if (!deck) return;
+    const slides = deck.slides as Slide[];
+
+    const valid = (i: number) => i >= 0 && i < slides.length;
+    const refTargets = [...new Set(slideIndexes)].filter(valid);
+    const imageTargets = [...new Set(imageIndexes)].filter(valid);
+
+    if (refTargets.length > 0) {
+      try {
+        await attachReferencesFor(ctx, deckId, slides, refTargets);
+      } catch (error) {
+        console.warn(`Referências do enrich falharam: ${String(error)}`);
+      }
+    }
+
+    if (imageTargets.length > 0) {
+      try {
+        await attachImages(ctx, deckId, slides, deck.topic, imageTargets);
+      } catch (error) {
+        console.warn(`Imagens do enrich falharam: ${String(error)}`);
+      }
     }
   },
 });
@@ -244,13 +296,50 @@ async function attachReferences(
   });
 }
 
+/**
+ * Same verification as `attachReferences`, but for a handful of slides added
+ * after the deck was already numbered. It can't renumber: the bibliography slide
+ * and every footnote already in the deck point at the existing numbers, so new
+ * sources are appended and existing ones are reused by PMID.
+ */
+async function attachReferencesFor(
+  ctx: ActionCtx,
+  deckId: Id<"decks">,
+  slides: Slide[],
+  targets: number[],
+) {
+  const found: Array<{ slideIndex: number; refs: Reference[] }> = [];
+
+  for (const slideIndex of targets.slice(0, 8)) {
+    const query = normalizeClaim(slides[slideIndex]?.citationQuery ?? "");
+    if (query.length < 4) continue;
+
+    let results = await ctx.runQuery(internal.images.readReferenceCache, {
+      query,
+    });
+    if (!results) {
+      results = await findReferences(query);
+      await ctx.runMutation(internal.images.writeReferenceCache, {
+        query,
+        results,
+      });
+    }
+    if (results.length > 0) {
+      found.push({ slideIndex, refs: results.slice(0, 2) });
+    }
+  }
+
+  if (found.length === 0) return;
+  await ctx.runMutation(internal.decks.mergeReferences, { deckId, found });
+}
+
 async function attachImages(
   ctx: ActionCtx,
   deckId: Id<"decks">,
   slides: Slide[],
   topic: string,
+  targets: number[],
 ) {
-  const targets = slidesNeedingImages(slides);
   if (targets.length === 0) return;
 
   // One search per distinct query, then a widening set of fallbacks so a niche
@@ -273,11 +362,18 @@ async function attachImages(
   }
 
   // Don't repeat a photo inside one deck — the same corridor twice reads as a
-  // bug even when each slide picked it independently.
-  const used = new Set<string>();
+  // bug even when each slide picked it independently. The credit line is derived
+  // from the photo, so it doubles as the identity of one already on the deck:
+  // without this, a slide enriched later would deterministically be handed the
+  // first fallback result, which is exactly the one the cover already used.
+  const used = new Set<string>(
+    slides.map((s) => s.imageCredit).filter((c): c is string => Boolean(c)),
+  );
   const pick = (query: string): StockImage | null => {
     for (const pool of [pools.get(query) ?? [], fallback]) {
-      const found = pool.find((image) => !used.has(image.url));
+      const found = pool.find(
+        (image) => !used.has(image.url) && !used.has(creditLine(image)),
+      );
       if (found) {
         used.add(found.url);
         return found;

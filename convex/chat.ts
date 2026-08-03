@@ -3,7 +3,7 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action } from "./_generated/server";
-import { sanitizeSlide, type Slide } from "../src/lib/deck";
+import { type Slide } from "../src/lib/deck";
 import { generateStructured } from "./lib/ai";
 
 /**
@@ -25,7 +25,7 @@ const OPS_SCHEMA = {
         properties: {
           tipo: {
             type: "STRING",
-            enum: ["editar", "adicionar", "remover"],
+            enum: ["editar", "adicionar", "remover", "imagem"],
           },
           slide: { type: "NUMBER" },
           layout: {
@@ -59,6 +59,8 @@ const OPS_SCHEMA = {
               required: ["heading"],
             },
           },
+          imageQuery: { type: "STRING" },
+          citationQuery: { type: "STRING" },
         },
         required: ["tipo"],
         propertyOrdering: [
@@ -72,6 +74,8 @@ const OPS_SCHEMA = {
           "nos",
           "outcome",
           "notas",
+          "imageQuery",
+          "citationQuery",
         ],
       },
     },
@@ -89,8 +93,29 @@ Operações:
 - \`editar\` — precisa de \`slide\` (número exibido, começando em 1) e só os campos
   que mudam (\`titulo\`, \`subtitulo\`, \`topicos\`, \`hub\`, \`nos\`, \`outcome\`, \`notas\`).
 - \`adicionar\` — \`slide\` é a posição onde o novo slide entra. Informe \`layout\`,
-  \`titulo\` e o conteúdo daquele layout.
+  \`titulo\`, o conteúdo daquele layout e, quando couber, \`citationQuery\` e
+  \`imageQuery\`. Para vários slides, devolva **uma operação por slide**, em
+  posições consecutivas (4 slides depois do 6 → posições 7, 8, 9 e 10).
 - \`remover\` — só \`slide\`.
+- \`imagem\` — troca a foto de um slide. Precisa de \`slide\` e \`imageQuery\`. Use
+  também quando pedirem para *adicionar* foto a um slide que não tem.
+
+\`citationQuery\` e \`imageQuery\` não vão para a tela: são buscas que outros
+sistemas executam.
+
+- \`citationQuery\`: 4 a 10 palavras **em inglês** descrevendo a afirmação clínica
+  que precisa de evidência; o sistema busca no PubMed e anexa o artigo real.
+  Ex.: "Antibiótico na 1ª hora reduz mortalidade" →
+  \`early antibiotic administration sepsis mortality\`. Preencha em slides que
+  afirmam conduta, dose, corte ou desfecho; deixe vazio em capa, seção e
+  encerramento.
+- \`imageQuery\`: 2 a 4 palavras **em inglês**, concretas e fotografáveis — é uma
+  busca em banco de fotos, não um prompt. Bom: \`hospital corridor\`,
+  \`emergency room team\`, \`medication vials\`. Ruim: \`sepsis pathophysiology\`
+  (não é fotografável), \`foto realista de...\` (é prompt, e não está em inglês).
+  A foto é **ambiente**, nunca informação: nunca busque achado clínico, exame de
+  imagem, lesão, ferida ou peça anatômica. Deixe vazio em \`comparacao\` e nos
+  diagramas — esses já têm peso visual próprio.
 
 Regras:
 - Mexa **apenas** no que foi pedido. Se pedirem para encurtar o slide 4, não
@@ -99,9 +124,9 @@ Regras:
   \`resposta\` para perguntar o que a pessoa quer.
 - Mantenha o padrão do deck: título que afirma, no máximo 4 tópicos de até 10
   palavras, sem parágrafo na tela.
-- Nunca escreva referência, autor, ano ou DOI. As referências são buscadas no
-  PubMed por outro sistema.
-- Nunca peça imagem nem descreva foto.`;
+- Nunca escreva referência, autor, ano ou DOI **no texto do slide**. As
+  referências vêm do PubMed pela \`citationQuery\`.
+- Você não gera imagens e não descreve fotos no slide; só preenche \`imageQuery\`.`;
 
 function describeDeck(slides: Slide[]): string {
   return slides
@@ -132,6 +157,22 @@ type Op = {
   outcome?: string;
   nos?: Array<{ heading?: string; body?: string }>;
 };
+
+/** What the deck is still fetching, so the reply doesn't claim it's finished. */
+function describePending({
+  refSlides,
+  imageSlides,
+}: {
+  refSlides: number[];
+  imageSlides: number[];
+}): string {
+  const parts: string[] = [];
+  if (imageSlides.length > 0) {
+    parts.push(imageSlides.length === 1 ? "a imagem" : "as imagens");
+  }
+  if (refSlides.length > 0) parts.push("as referências no PubMed");
+  return parts.join(" e ");
+}
 
 export const send = action({
   args: {
@@ -169,11 +210,26 @@ export const send = action({
       reply = result.resposta?.trim() || "Pronto.";
 
       if (ops.length > 0) {
-        const applied = await ctx.runMutation(internal.chatOps.applyOps, {
+        const result = await ctx.runMutation(internal.chatOps.applyOps, {
           deckId,
           ops: JSON.stringify(ops),
         });
-        if (applied === 0) reply = `${reply} (nenhuma mudança pôde ser aplicada)`;
+        if (result.applied === 0) {
+          reply = `${reply} (nenhuma mudança pôde ser aplicada)`;
+        } else if (
+          result.refSlides.length > 0 ||
+          result.imageSlides.length > 0
+        ) {
+          // Scheduled, not awaited: PubMed and the photo search together take
+          // longer than anyone will watch a chat spinner, and the edited slides
+          // are already on screen. They fill in through the same live query.
+          await ctx.scheduler.runAfter(0, internal.generate.enrich, {
+            deckId,
+            slideIndexes: result.refSlides,
+            imageIndexes: result.imageSlides,
+          });
+          reply = `${reply} Buscando ${describePending(result)}…`;
+        }
       }
     } catch (error) {
       reply =
