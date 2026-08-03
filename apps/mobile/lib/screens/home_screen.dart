@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/app_localizations.dart';
+import '../l10n/labels.dart';
 import '../models/deck.dart';
 import '../state/providers.dart';
 import '../theme/med_tokens.dart';
@@ -14,18 +16,20 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final decks = ref.watch(myDecksProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('MedSlides'),
         titleSpacing: MedSpace.gutter,
+        actions: const [_LanguageMenu()],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => GenerateSheet.show(context),
         backgroundColor: MedColors.ink,
         foregroundColor: MedColors.paperRaised,
         icon: const Icon(Icons.add),
-        label: const Text('Nova apresentação'),
+        label: Text(l10n.newDeck),
       ),
       body: decks.when(
         loading: () => const _Centered(child: CircularProgressIndicator()),
@@ -38,9 +42,9 @@ class HomeScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Não consegui falar com o servidor.',
-                  style: TextStyle(fontSize: 16, color: MedColors.ink),
+                Text(
+                  l10n.serverUnreachable,
+                  style: const TextStyle(fontSize: 16, color: MedColors.ink),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -51,7 +55,7 @@ class HomeScreen extends ConsumerWidget {
                 const SizedBox(height: 14),
                 OutlinedButton(
                   onPressed: () => ref.invalidate(myDecksProvider),
-                  child: const Text('Tentar de novo'),
+                  child: Text(l10n.retry),
                 ),
               ],
             ),
@@ -96,15 +100,14 @@ class _Empty extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Sua primeira apresentação',
+              AppLocalizations.of(context)!.emptyTitle,
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 10),
-            const Text(
-              'Descreva o tema — por escrito ou falando — e eu monto os slides, '
-              'com referências buscadas no PubMed.',
+            Text(
+              AppLocalizations.of(context)!.emptyBody,
               textAlign: TextAlign.center,
-              style: TextStyle(color: MedColors.inkSoft, height: 1.5),
+              style: const TextStyle(color: MedColors.inkSoft, height: 1.5),
             ),
           ],
         ),
@@ -165,8 +168,12 @@ class _DeckCard extends StatelessWidget {
                         Flexible(
                           child: Text(
                             generating
-                                ? 'Gerando…'
-                                : '${deck.slideCount} slides · ${deck.audience}',
+                                ? AppLocalizations.of(context)!.generating
+                                : AppLocalizations.of(context)!.deckSubtitle(
+                                    deck.slideCount,
+                                    AppLocalizations.of(context)!
+                                        .audience(deck.audience),
+                                  ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -226,6 +233,62 @@ class _SparkleState extends State<_Sparkle>
       child: const Text(
         '✦',
         style: TextStyle(color: MedColors.clinical, fontSize: 13),
+      ),
+    );
+  }
+}
+
+/// Language, in the one place a returning user will look for it.
+///
+/// "Automático" is the default and follows the phone. It is a real option
+/// rather than an implicit state because the phone's language and the
+/// language a doctor wants to present in are not always the same — and this
+/// choice also decides what the dictation button listens for, which is the
+/// part that fails silently if it is wrong.
+class _LanguageMenu extends ConsumerWidget {
+  const _LanguageMenu();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final chosen = ref.watch(localePreferenceProvider).valueOrNull;
+
+    return PopupMenuButton<String>(
+      tooltip: l10n.language,
+      icon: const Icon(Icons.translate, size: 20),
+      onSelected: (value) => ref
+          .read(localePreferenceProvider.notifier)
+          .choose(value == 'auto' ? null : Locale(value)),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          enabled: false,
+          height: 34,
+          child: Text(
+            l10n.languageNote,
+            style: const TextStyle(fontSize: 11.5, color: MedColors.inkFaint),
+          ),
+        ),
+        const PopupMenuDivider(),
+        _item('auto', l10n.languageAutomatic, chosen == null),
+        _item('pt', l10n.languagePortuguese, chosen?.languageCode == 'pt'),
+        _item('en', l10n.languageEnglish, chosen?.languageCode == 'en'),
+      ],
+    );
+  }
+
+  PopupMenuItem<String> _item(String value, String label, bool active) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 26,
+            child: active
+                ? const Icon(Icons.check, size: 17, color: MedColors.clinical)
+                : null,
+          ),
+          Text(label),
+        ],
       ),
     );
   }

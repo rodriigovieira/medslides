@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:flutter_localizations/flutter_localizations.dart';
+
+import 'l10n/app_localizations.dart';
 import 'screens/home_screen.dart';
 import 'screens/intro_screen.dart';
 import 'state/providers.dart';
@@ -20,16 +23,31 @@ void main() {
   runApp(const ProviderScope(child: MedSlidesApp()));
 }
 
-class MedSlidesApp extends StatelessWidget {
+class MedSlidesApp extends ConsumerWidget {
   const MedSlidesApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Null means "follow the phone", and handing null to `locale:` is exactly
+    // how MaterialApp is told to do that — so the preference maps straight
+    // through with no branch.
+    final chosen = ref.watch(localePreferenceProvider).valueOrNull;
+
     return MaterialApp(
       title: 'MedSlides',
       debugShowCheckedModeBanner: false,
       theme: buildMedTheme(),
       color: MedColors.paper,
+      locale: chosen,
+      // Portuguese heads the list, so a phone set to a language we do not
+      // speak lands on Portuguese rather than on English.
+      supportedLocales: supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       home: const _Entry(),
     );
   }

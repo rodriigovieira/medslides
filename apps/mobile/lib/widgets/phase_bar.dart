@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+import '../l10n/labels.dart';
 import '../models/deck.dart';
 import '../theme/med_tokens.dart';
 
@@ -51,7 +53,8 @@ class PhaseBar extends StatelessWidget {
                 child: Text('✦', style: TextStyle(color: MedColors.clinical, fontSize: 13)),
               ),
             Text(
-              done ? 'Pronta' : current.label,
+              AppLocalizations.of(context)!
+                  .phase(done ? DeckPhase.pronto : current),
               style: TextStyle(
                 fontSize: 13,
                 color: done ? MedColors.inkFaint : MedColors.clinical,

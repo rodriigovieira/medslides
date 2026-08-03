@@ -1,0 +1,110 @@
+{
+  "@@locale": "pt",
+
+  "newDeck": "Nova apresentação",
+  "emptyTitle": "Sua primeira apresentação",
+  "emptyBody": "Descreva o tema — por escrito ou falando — e eu monto os slides, com referências buscadas no PubMed.",
+  "serverUnreachable": "Não consegui falar com o servidor.",
+  "retry": "Tentar de novo",
+  "generating": "Gerando…",
+  "deckSubtitle": "{count} slides · {audience}",
+  "@deckSubtitle": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "audience": { "type": "String" }
+    }
+  },
+
+  "introTitle": "Descreva o tema.\nEu monto os slides.",
+  "introBody": "Escrevo os slides e as notas do apresentador, e busco as referências no PubMed. Nenhuma citação é inventada: sem artigo real, sem referência.",
+  "introMicTitle": "Falar em vez de digitar",
+  "introMicBody": "A transcrição acontece no próprio aparelho — o áudio não sai daqui, nem quando a frase cita um paciente.",
+  "micAllow": "Permitir microfone",
+  "micAsking": "Aguardando…",
+  "micGranted": "Microfone liberado",
+  "start": "Começar",
+
+  "micDeniedSpeechIntro": "Sem reconhecimento de fala. Dá para liberar nos Ajustes depois.",
+  "micDeniedMicrophoneIntro": "Sem microfone. Dá para liberar nos Ajustes depois.",
+  "micUnavailableIntro": "Este aparelho não faz ditado. Digitar funciona igual.",
+  "micFailedIntro": "Não consegui pedir agora. Tente depois.",
+
+  "micDeniedSpeech": "Autorize o reconhecimento de fala nos Ajustes para ditar.",
+  "micDeniedMicrophone": "Autorize o microfone nos Ajustes para ditar.",
+  "micUnavailable": "Ditado não está disponível neste aparelho.",
+  "micFailed": "Não consegui ouvir. Tente de novo.",
+  "dictate": "Ditar",
+  "stopDictating": "Parar",
+
+  "deckFallbackTitle": "Apresentação",
+  "share": "Compartilhar",
+  "deckNotFound": "Apresentação não encontrada.",
+  "deckGenerateFailed": "Não consegui gerar esta apresentação.",
+  "present": "Apresentar",
+  "editWithAi": "Editar com IA",
+  "slideOfTotal": "{index} de {total}",
+  "@slideOfTotal": {
+    "placeholders": {
+      "index": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "speakerNotes": "Notas do apresentador",
+  "slideReferences": "Referências deste slide",
+
+  "presenterHint": "Toque nas laterais para avançar · segure para os controles",
+  "noNotes": "Sem notas neste slide.",
+
+  "topicHint": "Ex.: sepse na emergência — reconhecimento e primeira hora",
+  "audienceLabel": "Para quem",
+  "slidesLabel": "Slides",
+  "depthLabel": "Profundidade",
+  "depthOverview": "Panorama",
+  "depthDeep": "Aprofundado",
+  "generateDeck": "Gerar apresentação",
+
+  "audienceResidents": "Residentes e internos",
+  "audienceSpecialists": "Colegas especialistas (congresso)",
+  "audienceTeam": "Equipe multiprofissional",
+  "audiencePatients": "Pacientes e familiares",
+
+  "phaseText": "Escrevendo os slides",
+  "phaseReferences": "Buscando referências no PubMed",
+  "phaseImages": "Escolhendo as imagens",
+  "phaseReady": "Pronta",
+
+  "scopeSlide": "Este slide",
+  "scopeDeck": "A apresentação",
+  "scopeSlideNumbered": "Slide {index}",
+  "@scopeSlideNumbered": {
+    "placeholders": {
+      "index": { "type": "int" }
+    }
+  },
+  "adjustingSlides": "Ajustando os slides…",
+  "adjustingSlide": "Ajustando o slide…",
+  "chatDeckBody": "Diga o que quer mudar e eu ajusto os slides — um slide, vários, ou a imagem de um deles. Só mexo no que você pedir.",
+  "chatSlideBody": "Só o slide {index} muda. O resto da apresentação fica como está.",
+  "@chatSlideBody": {
+    "placeholders": {
+      "index": { "type": "int" }
+    }
+  },
+  "chatDeckHint": "Ex.: deixe o slide 4 mais curto",
+  "chatSlideHint": "Ex.: deixe mais curto e enfatize a dose",
+
+  "suggestDeckOne": "Adicione 3 slides sobre contraindicações",
+  "suggestDeckTwo": "No slide 4, enfatize a dose",
+  "suggestDeckThree": "Troque a imagem do slide 2",
+  "suggestDeckFour": "Gere uma ilustração para o slide 3",
+  "suggestSlideOne": "Deixe mais curto",
+  "suggestSlideTwo": "Enfatize a dose",
+  "suggestSlideThree": "Troque a imagem",
+  "suggestSlideFour": "Some um exemplo clínico",
+
+  "language": "Idioma",
+  "languageAutomatic": "Automático (do aparelho)",
+  "languagePortuguese": "Português",
+  "languageEnglish": "English",
+  "languageNote": "Muda a interface e o idioma do ditado. Os slides continuam sendo gerados em português."
+}

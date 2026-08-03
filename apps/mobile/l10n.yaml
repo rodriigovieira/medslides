@@ -1,0 +1,6 @@
+arb-dir: lib/l10n
+template-arb-file: app_pt.arb
+output-localization-file: app_localizations.dart
+# Portuguese is the template, not English: it is the language the product was
+# written in and the one the generated slides come back in, so it is the
+# translation that is never stale.

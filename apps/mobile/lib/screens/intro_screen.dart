@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../dictation/dictation_service.dart';
+import '../l10n/app_localizations.dart';
+import '../l10n/labels.dart';
 import '../state/providers.dart';
 import '../theme/med_tokens.dart';
 import '../widgets/generate_sheet.dart';
@@ -30,28 +32,23 @@ class _IntroScreenState extends ConsumerState<IntroScreen> {
 
   bool _asking = false;
   bool _granted = false;
-  String? _denied;
+
+  /// The failure itself, not its sentence: the wording is looked up at build
+  /// time so switching language re-renders it instead of leaving the message
+  /// frozen in whichever language it was denied in.
+  DictationError? _failure;
 
   Future<void> _askForMicrophone() async {
     setState(() {
       _asking = true;
-      _denied = null;
+      _failure = null;
     });
     final failure = await _dictation.authorize();
     if (!mounted) return;
     setState(() {
       _asking = false;
       _granted = failure == null;
-      _denied = switch (failure) {
-        null => null,
-        DictationError.speechDenied =>
-          'Sem reconhecimento de fala. Dá para liberar nos Ajustes depois.',
-        DictationError.microphoneDenied =>
-          'Sem microfone. Dá para liberar nos Ajustes depois.',
-        DictationError.unavailable =>
-          'Este aparelho não faz ditado. Digitar funciona igual.',
-        DictationError.failed => 'Não consegui pedir agora. Tente depois.',
-      };
+      _failure = failure;
     });
   }
 
@@ -71,6 +68,8 @@ class _IntroScreenState extends ConsumerState<IntroScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -89,15 +88,13 @@ class _IntroScreenState extends ConsumerState<IntroScreen> {
               Container(width: 64, height: 5, color: MedColors.clinical),
               const SizedBox(height: 26),
               Text(
-                'Descreva o tema.\nEu monto os slides.',
+                l10n.introTitle,
                 style: Theme.of(context).textTheme.displayLarge,
               ),
               const SizedBox(height: 18),
-              const Text(
-                'Escrevo os slides e as notas do apresentador, e busco as '
-                'referências no PubMed. Nenhuma citação é inventada: sem artigo '
-                'real, sem referência.',
-                style: TextStyle(
+              Text(
+                l10n.introBody,
+                style: const TextStyle(
                   fontSize: 16,
                   height: 1.5,
                   color: MedColors.inkSoft,
@@ -107,7 +104,7 @@ class _IntroScreenState extends ConsumerState<IntroScreen> {
               _MicrophoneCard(
                 asking: _asking,
                 granted: _granted,
-                denied: _denied,
+                failure: _failure,
                 onAsk: _askForMicrophone,
               ),
               const Spacer(),
@@ -115,7 +112,7 @@ class _IntroScreenState extends ConsumerState<IntroScreen> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _begin,
-                  child: const Text('Começar'),
+                  child: Text(l10n.start),
                 ),
               ),
             ],
@@ -130,13 +127,13 @@ class _MicrophoneCard extends StatelessWidget {
   const _MicrophoneCard({
     required this.asking,
     required this.granted,
-    required this.denied,
+    required this.failure,
     required this.onAsk,
   });
 
   final bool asking;
   final bool granted;
-  final String? denied;
+  final DictationError? failure;
   final VoidCallback onAsk;
 
   @override
@@ -144,6 +141,8 @@ class _MicrophoneCard extends StatelessWidget {
     // Android has no dictation channel wired up, so offering it there would be
     // a button that can only fail.
     if (!DictationService().isSupported) return const SizedBox.shrink();
+
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -163,10 +162,10 @@ class _MicrophoneCard extends StatelessWidget {
                 color: granted ? MedColors.clinical : MedColors.inkSoft,
               ),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Falar em vez de digitar',
-                  style: TextStyle(
+                  l10n.introMicTitle,
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: MedColors.ink,
@@ -176,15 +175,18 @@ class _MicrophoneCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
-            'A transcrição acontece no próprio aparelho — o áudio não sai '
-            'daqui, nem quando a frase cita um paciente.',
-            style: TextStyle(fontSize: 13.5, height: 1.45, color: MedColors.inkSoft),
+          Text(
+            l10n.introMicBody,
+            style: const TextStyle(
+              fontSize: 13.5,
+              height: 1.45,
+              color: MedColors.inkSoft,
+            ),
           ),
-          if (denied != null) ...[
+          if (failure != null) ...[
             const SizedBox(height: 8),
             Text(
-              denied!,
+              l10n.dictationProblemAtIntro(failure!),
               style: const TextStyle(fontSize: 13, color: MedColors.signal),
             ),
           ],
@@ -195,10 +197,10 @@ class _MicrophoneCard extends StatelessWidget {
               onPressed: granted || asking ? null : onAsk,
               child: Text(
                 granted
-                    ? 'Microfone liberado'
+                    ? l10n.micGranted
                     : asking
-                        ? 'Aguardando…'
-                        : 'Permitir microfone',
+                        ? l10n.micAsking
+                        : l10n.micAllow,
               ),
             ),
           ),

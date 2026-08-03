@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../dictation/dictation_button.dart';
+import '../l10n/app_localizations.dart';
+import '../l10n/labels.dart';
 import '../screens/deck_screen.dart';
 import '../state/providers.dart';
 import '../theme/med_tokens.dart';
@@ -100,6 +102,7 @@ class _GenerateSheetState extends ConsumerState<GenerateSheet> {
     // shown next to the field rather than written into it — otherwise it fights
     // whatever the user is typing.
     final insets = MediaQuery.viewInsetsOf(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Padding(
       padding: EdgeInsets.only(bottom: insets.bottom),
@@ -122,7 +125,7 @@ class _GenerateSheetState extends ConsumerState<GenerateSheet> {
               ),
               const SizedBox(height: 18),
               Text(
-                'Nova apresentação',
+                l10n.newDeck,
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 14),
@@ -137,9 +140,8 @@ class _GenerateSheetState extends ConsumerState<GenerateSheet> {
                       maxLines: 6,
                       maxLength: 600,
                       textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(
-                        hintText:
-                            'Ex.: sepse na emergência — reconhecimento e primeira hora',
+                      decoration: InputDecoration(
+                        hintText: l10n.topicHint,
                         counterText: '',
                       ),
                     ),
@@ -165,13 +167,16 @@ class _GenerateSheetState extends ConsumerState<GenerateSheet> {
                 ),
               const SizedBox(height: 16),
               _Field(
-                label: 'Para quem',
+                label: l10n.audienceLabel,
                 child: DropdownButtonFormField<String>(
                   initialValue: request.audience,
                   isExpanded: true,
                   items: [
                     for (final audience in audiences)
-                      DropdownMenuItem(value: audience, child: Text(audience)),
+                      DropdownMenuItem(
+                        value: audience,
+                        child: Text(l10n.audience(audience)),
+                      ),
                   ],
                   onChanged: (value) => value == null
                       ? null
@@ -185,7 +190,7 @@ class _GenerateSheetState extends ConsumerState<GenerateSheet> {
                 children: [
                   Expanded(
                     child: _Field(
-                      label: 'Slides',
+                      label: l10n.slidesLabel,
                       child: DropdownButtonFormField<int>(
                         initialValue: request.slideCount,
                         items: [
@@ -203,17 +208,17 @@ class _GenerateSheetState extends ConsumerState<GenerateSheet> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _Field(
-                      label: 'Profundidade',
+                      label: l10n.depthLabel,
                       child: DropdownButtonFormField<String>(
                         initialValue: request.depth,
-                        items: const [
+                        items: [
                           DropdownMenuItem(
                             value: 'panorama',
-                            child: Text('Panorama'),
+                            child: Text(l10n.depthOverview),
                           ),
                           DropdownMenuItem(
                             value: 'aprofundado',
-                            child: Text('Aprofundado'),
+                            child: Text(l10n.depthDeep),
                           ),
                         ],
                         onChanged: (value) => value == null
@@ -247,7 +252,7 @@ class _GenerateSheetState extends ConsumerState<GenerateSheet> {
                             color: MedColors.paperRaised,
                           ),
                         )
-                      : const Text('Gerar apresentação'),
+                      : Text(l10n.generateDeck),
                 ),
               ),
             ],

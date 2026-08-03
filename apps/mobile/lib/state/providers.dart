@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show basicLocaleListResolution;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
@@ -32,6 +34,68 @@ final clientIdProvider = FutureProvider<String>((ref) async {
   final fresh = const Uuid().v4();
   await storage.write(key: _clientIdKey, value: fresh);
   return fresh;
+});
+
+/// The language the user picked, or null for "follow the phone".
+///
+/// Kept beside the client id for the same reason: it is a preference about
+/// this person, and losing it on reinstall would silently drop them back to
+/// the phone's language mid-use.
+const _localeKey = 'medslides.locale';
+
+/// Every language the app is actually translated into. Portuguese first,
+/// because Flutter falls back to the head of this list when the phone is set
+/// to something we do not speak — and Portuguese is the language the slides
+/// come back in, so it is the right thing to land on.
+const supportedLocales = [Locale('pt'), Locale('en')];
+
+final localePreferenceProvider =
+    AsyncNotifierProvider<LocalePreference, Locale?>(LocalePreference.new);
+
+class LocalePreference extends AsyncNotifier<Locale?> {
+  @override
+  Future<Locale?> build() async {
+    final stored = await ref.watch(_secureStorageProvider).read(key: _localeKey);
+    if (stored == null || stored.isEmpty) return null;
+    return supportedLocales
+        .where((locale) => locale.languageCode == stored)
+        .firstOrNull;
+  }
+
+  /// Pass null to go back to following the phone.
+  Future<void> choose(Locale? locale) async {
+    final storage = ref.read(_secureStorageProvider);
+    if (locale == null) {
+      await storage.delete(key: _localeKey);
+    } else {
+      await storage.write(key: _localeKey, value: locale.languageCode);
+    }
+    state = AsyncData(locale);
+  }
+}
+
+/// The language the app is actually showing, preference or phone.
+///
+/// Dictation reads this rather than the phone's locale: someone running the
+/// app in Portuguese on an English phone was being transcribed as English,
+/// which does not fail loudly — it produces confident nonsense.
+final activeLocaleProvider = Provider<Locale>((ref) {
+  final chosen = ref.watch(localePreferenceProvider).valueOrNull;
+  if (chosen != null) return chosen;
+  return basicLocaleListResolution(
+    PlatformDispatcher.instance.locales,
+    supportedLocales,
+  );
+});
+
+/// What the speech recogniser should listen for. Region matters here in a way
+/// it does not for the interface: `pt` alone leaves iOS to guess between
+/// Brazilian and European Portuguese.
+final dictationLocaleProvider = Provider<String>((ref) {
+  return switch (ref.watch(activeLocaleProvider).languageCode) {
+    'en' => 'en-US',
+    _ => 'pt-BR',
+  };
 });
 
 /// Whether the intro has already been read.

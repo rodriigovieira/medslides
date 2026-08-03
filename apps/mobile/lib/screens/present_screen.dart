@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../l10n/app_localizations.dart';
 import '../slides/slide_view.dart';
 import '../state/providers.dart';
 import '../theme/med_tokens.dart';
@@ -162,9 +163,12 @@ class _PresentScreenState extends ConsumerState<PresentScreen> {
                         ],
                       ),
                       const Spacer(),
-                      const Text(
-                        'Toque nas laterais para avançar · segure para os controles',
-                        style: TextStyle(color: Colors.white54, fontSize: 11.5),
+                      Text(
+                        AppLocalizations.of(context)!.presenterHint,
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 11.5,
+                        ),
                       ),
                     ],
                   ),
@@ -195,7 +199,7 @@ class _PresentScreenState extends ConsumerState<PresentScreen> {
         padding: const EdgeInsets.all(MedSpace.gutter),
         child: SingleChildScrollView(
           child: Text(
-            notes ?? 'Sem notas neste slide.',
+            notes ?? AppLocalizations.of(context)!.noNotes,
             style: const TextStyle(
               height: 1.55,
               fontSize: 16,
