@@ -85,7 +85,11 @@ export function SlideView({
             src={image}
             className={`h-full w-full ${
               slide.imageStyle === "ilustracao"
-                ? "!object-contain p-[3cqw]"
+                ? // `multiply` drops the JPEG's white to nothing against the
+                  // page. The model only returns JPEG, so there is no alpha to
+                  // work with, and without this the art sits in a faintly
+                  // visible white rectangle.
+                  "!object-contain p-[3cqw] mix-blend-multiply"
                 : ""
             }`}
           />

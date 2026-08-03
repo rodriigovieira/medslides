@@ -178,6 +178,9 @@ export async function composeSlideImage(
       const scale = Math.min(boxW / img.width, boxH / img.height);
       const dw = img.width * scale;
       const dh = img.height * scale;
+      // Same reason as on screen: multiply against the paper drops the JPEG's
+      // white so the art doesn't sit in a visible rectangle.
+      ctx.globalCompositeOperation = "multiply";
       ctx.drawImage(
         img,
         panelX + pad + (boxW - dw) / 2,
@@ -185,6 +188,7 @@ export async function composeSlideImage(
         dw,
         dh,
       );
+      ctx.globalCompositeOperation = "source-over";
       return canvas.toDataURL("image/jpeg", 0.86);
     }
 
