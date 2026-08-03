@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="clinico">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MedSlides — sistema de design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Archivo:wght@500;600;700&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   THEMES
+   Every option is a full token set. Nothing below this block
+   references a raw colour — swap the theme, swap the product.
+   ============================================================ */
+
+/* 1 — CLÍNICO (atual). Paper, tinta, verde clínico.
+      Calmo, de revista médica. Boa leitura em sala clara. */
+[data-theme="clinico"] {
+  --paper:        #F7F6F2;
+  --surface:      #FFFEFB;
+  --surface-alt:  #F1EFE8;
+  --ink:          #0E1B2A;
+  --ink-soft:     #3C4A5A;
+  --ink-faint:    #6D7683;
+  --rule:         #E2DED4;
+  --accent:       #0D7A6F;
+  --accent-deep:  #085A52;
+  --accent-tint:  #E7F2F0;
+  --signal:       #B15735;
+  --slide-bg:     #FFFEFB;
+  --slide-dark:   #0A141E;
+  --font-display: "Instrument Serif", Georgia, serif;
+  --font-text:    "IBM Plex Sans", system-ui, sans-serif;
+  --display-weight: 400;
+  --radius:       10px;
+  --radius-lg:    16px;
+  --shadow:       0 1px 2px rgba(14,27,42,.04), 0 12px 32px -16px rgba(14,27,42,.18);
+}
+
+/* 2 — CONGRESSO. Fundo escuro, ouro. O visual de patrocínio
+      farmacêutico: caro, denso, feito para auditório escuro. */
+[data-theme="congresso"] {
+  --paper:        #0B1220;
+  --surface:      #111C2E;
+  --surface-alt:  #16243A;
+  --ink:          #F4F1EA;
+  --ink-soft:     #C3CCDA;
+  --ink-faint:    #8494A8;
+  --rule:         #22334D;
+  --accent:       #C9A227;
+  --accent-deep:  #E3C158;
+  --accent-tint:  #1E2A3F;
+  --signal:       #E0653F;
+  --slide-bg:     #0E1829;
+  --slide-dark:   #070E1A;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-text:    "IBM Plex Sans", system-ui, sans-serif;
+  --display-weight: 600;
+  --radius:       8px;
+  --radius-lg:    14px;
+  --shadow:       0 1px 2px rgba(0,0,0,.4), 0 18px 40px -20px rgba(0,0,0,.8);
+}
+
+/* 3 — RESIDÊNCIA. Sem serifa, alto contraste, tipo grande.
+      Para protocolo e plantão: legível de longe, sem ornamento. */
+[data-theme="residencia"] {
+  --paper:        #FFFFFF;
+  --surface:      #FFFFFF;
+  --surface-alt:  #F2F5F9;
+  --ink:          #0B1524;
+  --ink-soft:     #38465C;
+  --ink-faint:    #68768C;
+  --rule:         #D9E1EC;
+  --accent:       #1D5FD0;
+  --accent-deep:  #16489E;
+  --accent-tint:  #E7EFFC;
+  --signal:       #C9342B;
+  --slide-bg:     #FFFFFF;
+  --slide-dark:   #0B1524;
+  --font-display: "Archivo", system-ui, sans-serif;
+  --font-text:    "IBM Plex Sans", system-ui, sans-serif;
+  --display-weight: 700;
+  --radius:       6px;
+  --radius-lg:    10px;
+  --shadow:       0 1px 2px rgba(11,21,36,.06), 0 10px 24px -14px rgba(11,21,36,.25);
+}
+
+/* 4 — PRECISÃO. Quase monocromático com um único sinal quente.
+      Muito espaço em branco. Moderno, editorial, difícil de errar. */
+[data-theme="precisao"] {
+  --paper:        #FAFAF9;
+  --surface:      #FFFFFF;
+  --surface-alt:  #F0F0EE;
+  --ink:          #14140F;
+  --ink-soft:     #45453D;
+  --ink-faint:    #76766D;
+  --rule:         #E3E3DE;
+  --accent:       #14140F;
+  --accent-deep:  #000000;
+  --accent-tint:  #EDEDE9;
+  --signal:       #C64A25;
+  --slide-bg:     #FFFFFF;
+  --slide-dark:   #14140F;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-text:    "IBM Plex Sans", system-ui, sans-serif;
+  --display-weight: 700;
+  --radius:       4px;
+  --radius-lg:    8px;
+  --shadow:       0 1px 2px rgba(20,20,15,.05), 0 14px 30px -18px rgba(20,20,15,.3);
+}
+
+/* ============================================================
+   ESCALAS — iguais em todos os temas
+   ============================================================ */
+:root {
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 24px; --s6: 32px; --s7: 48px; --s8: 64px;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+h1,h2,h3 { font-family: var(--font-display); font-weight: var(--display-weight); margin: 0; letter-spacing: -0.01em; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em; }
+a { color: var(--accent); }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 var(--s5) var(--s8); }
+.section { padding-top: var(--s8); }
+.section > h2 { font-size: 28px; margin-bottom: var(--s2); }
+.section > p.lede { color: var(--ink-soft); max-width: 62ch; margin: 0 0 var(--s5); }
+.grid { display: grid; gap: var(--s4); }
+.hr { height: 1px; background: var(--rule); border: 0; margin: var(--s7) 0 0; }
+
+/* ---------- theme picker ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--rule);
+}
+.topbar-inner { max-width: 1180px; margin: 0 auto; padding: var(--s3) var(--s5); display: flex; gap: var(--s4); align-items: center; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-size: 19px; font-weight: var(--display-weight); }
+.brand i { width: 18px; height: 18px; border-radius: 5px; background: var(--accent); display: block; }
+.picker { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+.picker button {
+  font: inherit; font-size: 13px; cursor: pointer;
+  padding: 7px 13px; border-radius: 999px;
+  border: 1px solid var(--rule); background: transparent; color: var(--ink-soft);
+}
+.picker button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+/* ---------- palette ---------- */
+.swatches { grid-template-columns: repeat(auto-fill, minmax(178px,1fr)); }
+.sw { border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.sw .chip { height: 66px; }
+.sw .meta { padding: 10px 12px; font-size: 12.5px; }
+.sw .name { font-weight: 600; }
+.sw .hex { color: var(--ink-faint); font-family: ui-monospace, monospace; }
+.sw .use { color: var(--ink-faint); margin-top: 3px; }
+
+.contrast { grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); }
+.ct { border: 1px solid var(--rule); border-radius: var(--radius); padding: var(--s3) var(--s4); background: var(--surface); }
+.ct .row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s2); }
+.ct .ratio { font-family: ui-monospace, monospace; font-weight: 600; }
+.pass { color: var(--accent-deep); } .fail { color: var(--signal); }
+
+/* ---------- type ---------- */
+.spec { border-bottom: 1px solid var(--rule); padding: var(--s4) 0; display: grid; grid-template-columns: 130px 1fr; gap: var(--s4); align-items: baseline; }
+.spec .lbl { color: var(--ink-faint); font-size: 12.5px; font-family: ui-monospace, monospace; }
+
+/* ---------- components ---------- */
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-lg); padding: var(--s5); box-shadow: var(--shadow); }
+.demo { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; }
+.btn { font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; border-radius: var(--radius); padding: 10px 16px; border: 1px solid transparent; }
+.btn-primary { background: var(--ink); color: var(--paper); }
+.btn-accent  { background: var(--accent); color: var(--paper); }
+[data-theme="congresso"] .btn-accent, [data-theme="precisao"] .btn-accent { color: var(--slide-dark); }
+.btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--rule); }
+.btn-ghost { background: transparent; color: var(--ink-soft); }
+.btn:disabled { opacity: .38; cursor: not-allowed; }
+.icon-btn { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; border: 1px solid var(--rule); background: transparent; color: var(--ink-soft); cursor: pointer; }
+.field { width: 100%; font: inherit; font-size: 15px; padding: 11px 13px; border-radius: var(--radius); border: 1px solid var(--rule); background: var(--surface); color: var(--ink); outline: none; }
+.field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.chiprow { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.chip-pill { font-size: 13px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--rule); color: var(--ink-soft); background: var(--surface); }
+.badge { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--accent-tint); color: var(--accent-deep); font-weight: 600; }
+[data-theme="congresso"] .badge { color: var(--accent-deep); }
+.note { font-size: 13px; color: var(--ink-faint); }
+
+/* ---------- slide surfaces (o produto) ---------- */
+.slide {
+  container-type: inline-size;
+  position: relative; aspect-ratio: 16/9; width: 100%;
+  border-radius: var(--radius); overflow: hidden;
+  border: 1px solid var(--rule); background: var(--slide-bg); color: var(--ink);
+}
+.slide.dark { background: var(--slide-dark); color: #F7F6F2; border-color: transparent; }
+.slide .pad { position: absolute; inset: 0; padding: 6.5cqw 7cqw; display: flex; flex-direction: column; }
+.slide .accentbar { position: absolute; left: 0; top: 0; height: .85cqw; width: 15cqw; background: var(--accent); }
+.slide.dark .accentbar { background: #F7F6F2; }
+.slide h4 { font-family: var(--font-display); font-weight: var(--display-weight); font-size: 4.2cqw; line-height: 1.12; margin: 0; letter-spacing: -.01em; }
+.slide .sub { font-size: 2cqw; color: var(--ink-faint); margin-top: 1.3cqw; }
+.slide.dark .sub { color: rgba(247,246,242,.7); }
+.slide ul { margin: 3.4cqw 0 0; padding: 0; list-style: none; display: grid; gap: 1.9cqw; }
+.slide li { display: flex; gap: 1.8cqw; font-size: 2.3cqw; line-height: 1.35; color: var(--ink-soft); }
+.slide.dark li { color: rgba(247,246,242,.85); }
+.slide li i { width: .7cqw; height: .7cqw; border-radius: 999px; background: var(--accent); margin-top: 1.1cqw; flex: none; }
+.slide .refs { position: absolute; left: 7cqw; bottom: 2.6cqw; font-size: 1.25cqw; color: var(--ink-faint); }
+.slide .pageno { position: absolute; right: 7cqw; bottom: 2.6cqw; font-size: 1.45cqw; color: var(--ink-faint); }
+.slide .cover-title { font-family: var(--font-display); font-weight: var(--display-weight); font-size: 6.8cqw; line-height: 1.02; letter-spacing: -.02em; }
+.slide .cover-rule { width: 11cqw; height: .9cqw; background: var(--accent); margin-bottom: 3.2cqw; }
+.slide.dark .cover-rule { background: #F7F6F2; }
+.slide .photo { position: absolute; inset: 0 0 0 auto; width: 41cqw; background: linear-gradient(135deg,#8fa3ad,#5d7683); }
+.slide .photo::after { content:""; position:absolute; inset:0 auto 0 0; width: 9cqw; background: linear-gradient(to right, var(--slide-bg), transparent); }
+.slide .stat { font-family: var(--font-display); font-weight: var(--display-weight); font-size: 13cqw; line-height: .92; }
+.slide .eyebrow { font-size: 2.1cqw; text-transform: uppercase; letter-spacing: .16em; color: rgba(247,246,242,.65); }
+
+.diagram { display: flex; gap: 1.4cqw; flex: 1; align-items: stretch; margin-top: 3cqw; }
+.hub { width: 24cqw; display: flex; align-items: center; }
+.hub > div { width: 100%; text-align: center; border: .25cqw solid var(--accent); background: var(--accent-tint); border-radius: 1.1cqw; padding: 2.2cqw 2cqw; font-size: 2.1cqw; font-weight: 600; color: var(--accent-deep); }
+.branches { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 1.3cqw; }
+.nodes { display: grid; grid-template-columns: 1fr 1fr; gap: 1.3cqw; }
+.node { border: 1px solid var(--rule); background: var(--surface); border-radius: .9cqw; padding: 1.5cqw 1.9cqw; }
+.node b { display: block; font-size: 1.85cqw; color: var(--accent-deep); }
+.node span { display: block; font-size: 1.5cqw; color: var(--ink-soft); margin-top: .7cqw; }
+.outcome { background: var(--accent); color: var(--paper); border-radius: .9cqw; padding: 1.2cqw 2cqw; text-align: center; font-size: 1.95cqw; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+[data-theme="congresso"] .outcome, [data-theme="precisao"] .outcome { color: var(--slide-dark); }
+
+.slides-grid { grid-template-columns: repeat(auto-fit, minmax(340px,1fr)); }
+.slide-label { font-size: 12.5px; color: var(--ink-faint); margin: 0 0 var(--s2); font-family: ui-monospace, monospace; }
+
+/* ---------- comparison / decision ---------- */
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { color: var(--ink-faint); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: .06em; }
+.rec { background: var(--accent-tint); border-left: 3px solid var(--accent); padding: var(--s4); border-radius: var(--radius); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <span class="brand"><i></i> MedSlides — sistema de design</span>
+    <div class="picker" id="picker">
+      <button data-t="clinico"    aria-pressed="true">1 · Clínico</button>
+      <button data-t="congresso"  aria-pressed="false">2 · Congresso</button>
+      <button data-t="residencia" aria-pressed="false">3 · Residência</button>
+      <button data-t="precisao"   aria-pressed="false">4 · Precisão</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="section">
+    <h2 id="opt-title">Opção 1 — Clínico</h2>
+    <p class="lede" id="opt-desc"></p>
+    <div class="rec" id="opt-when"></div>
+  </div>
+
+  <hr class="hr" />
+
+  <!-- PALETA -->
+  <div class="section">
+    <h2>Paleta</h2>
+    <p class="lede">Onze fichas. Nenhum componente usa cor crua — tudo referencia um token, então trocar o tema troca o produto inteiro.</p>
+    <div class="grid swatches" id="swatches"></div>
+
+    <h3 style="font-size:19px;margin:var(--s6) 0 var(--s3)">Contraste (WCAG, calculado ao vivo)</h3>
+    <p class="lede">Slide projetado numa sala clara perdoa menos que uma tela. Texto de corpo abaixo de 4.5 é reprovado aqui, não “quase”.</p>
+    <div class="grid contrast" id="contrast"></div>
+  </div>
+
+  <hr class="hr" />
+
+  <!-- TIPOGRAFIA -->
+  <div class="section">
+    <h2>Tipografia</h2>
+    <p class="lede">Duas famílias: uma de display para títulos, uma de texto para todo o resto. Escala em passos de ~1.25.</p>
+    <div id="type"></div>
+  </div>
+
+  <hr class="hr" />
+
+  <!-- ESPAÇO -->
+  <div class="section">
+    <h2>Espaço, raio e elevação</h2>
+    <p class="lede">Escala de 4px. Só três raios e uma sombra — variação demais em superfícies é o que faz interface parecer remendada.</p>
+    <div class="card">
+      <div class="demo" id="spacing"></div>
+      <div class="demo" style="margin-top:var(--s5)">
+        <div style="width:120px;height:64px;border:1px solid var(--rule);border-radius:var(--radius);display:grid;place-items:center;font-size:12px">radius</div>
+        <div style="width:120px;height:64px;border:1px solid var(--rule);border-radius:var(--radius-lg);display:grid;place-items:center;font-size:12px">radius-lg</div>
+        <div style="width:120px;height:64px;border-radius:999px;border:1px solid var(--rule);display:grid;place-items:center;font-size:12px">pill</div>
+        <div style="width:120px;height:64px;border-radius:var(--radius-lg);background:var(--surface);box-shadow:var(--shadow);display:grid;place-items:center;font-size:12px">shadow</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="hr" />
+
+  <!-- COMPONENTES -->
+  <div class="section">
+    <h2>Componentes base</h2>
+    <p class="lede">O inventário completo do app hoje. Se algo novo não puder ser montado com estes, é sinal de que falta um componente — não de que é hora de improvisar.</p>
+
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(330px,1fr))">
+      <div class="card">
+        <h3 style="font-size:16px;margin-bottom:var(--s4)">Botões</h3>
+        <div class="demo">
+          <button class="btn btn-primary">Apresentar</button>
+          <button class="btn btn-accent">Gerar</button>
+          <button class="btn btn-secondary">Baixar</button>
+          <button class="btn btn-ghost">Nova</button>
+          <button class="btn btn-primary" disabled>Aguarde</button>
+        </div>
+        <div class="demo" style="margin-top:var(--s3)">
+          <button class="icon-btn">↑</button>
+          <button class="icon-btn">‹</button>
+          <button class="icon-btn">›</button>
+          <button class="icon-btn">✕</button>
+        </div>
+        <p class="note" style="margin-top:var(--s3)">Um primário por tela. O ícone sozinho só quando o rótulo não cabe — e sempre com <code>aria-label</code>.</p>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:16px;margin-bottom:var(--s4)">Entrada</h3>
+        <input class="field" placeholder="Tema da apresentação" />
+        <textarea class="field" rows="3" style="margin-top:var(--s3)" placeholder="Ex.: manejo inicial da sepse no pronto-socorro"></textarea>
+        <select class="field" style="margin-top:var(--s3)"><option>Residentes e internos</option></select>
+        <p class="note" style="margin-top:var(--s3)">16px no mobile, sempre. Abaixo disso o iOS dá zoom ao focar e quebra o layout.</p>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:16px;margin-bottom:var(--s4)">Chips e selos</h3>
+        <div class="chiprow">
+          <span class="chip-pill">Aula para residentes</span>
+          <span class="chip-pill">Congresso</span>
+          <span class="chip-pill">Pacientes</span>
+        </div>
+        <div class="chiprow" style="margin-top:var(--s3)">
+          <span class="badge">12 referências</span>
+          <span class="badge">PMID 28101605</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:16px;margin-bottom:var(--s4)">Progresso</h3>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px">
+          <span style="color:var(--ink-faint)">✓ Escrevendo</span>
+          <span style="width:24px;height:1px;background:var(--accent);opacity:.4"></span>
+          <span style="color:var(--accent);font-weight:600">● Referências</span>
+          <span style="width:24px;height:1px;background:var(--rule)"></span>
+          <span style="color:var(--ink-faint);opacity:.55">Imagens</span>
+        </div>
+        <div style="margin-top:var(--s4);border:1px dashed var(--rule);border-radius:var(--radius);aspect-ratio:16/9;display:grid;place-items:center;color:var(--ink-faint);font-size:13px">skeleton</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="hr" />
+
+  <!-- SLIDES -->
+  <div class="section">
+    <h2>Superfícies do slide</h2>
+    <p class="lede">A parte que importa: o tema só está certo se o slide estiver certo. Estes são os layouts reais do produto.</p>
+    <div class="grid slides-grid">
+
+      <div>
+        <p class="slide-label">capa</p>
+        <div class="slide dark">
+          <div class="photo" style="width:100%;opacity:.55"></div>
+          <div class="pad" style="justify-content:flex-end">
+            <div class="cover-rule"></div>
+            <div class="cover-title">Manejo Inicial da Sepse</div>
+            <div class="sub" style="font-size:2.5cqw">Abordagem no pronto-socorro</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="slide-label">tópicos + painel de foto</p>
+        <div class="slide">
+          <div class="accentbar"></div>
+          <div class="photo"></div>
+          <div class="pad" style="padding-right:46cqw">
+            <h4>Antibiótico na 1ª hora reduz mortalidade</h4>
+            <ul>
+              <li><i></i><span>Coletar culturas antes, sem atrasar</span></li>
+              <li><i></i><span>Amplo espectro conforme o foco</span></li>
+              <li><i></i><span>Reavaliar em 48–72 h</span></li>
+            </ul>
+          </div>
+          <div class="refs">5. Rhodes A, et al. Intensive Care Med. 2017. PMID 28101605</div>
+          <div class="pageno">5 / 12</div>
+        </div>
+      </div>
+
+      <div>
+        <p class="slide-label">destaque</p>
+        <div class="slide dark">
+          <div class="pad" style="justify-content:center">
+            <div class="eyebrow">Cada hora de atraso</div>
+            <div class="stat">7,6%</div>
+            <div class="sub" style="font-size:2.7cqw;color:rgba(247,246,242,.85)">Aumento da mortalidade por hora</div>
+          </div>
+          <div class="pageno" style="color:rgba(247,246,242,.55)">6 / 12</div>
+        </div>
+      </div>
+
+      <div>
+        <p class="slide-label">mecanismo</p>
+        <div class="slide">
+          <div class="accentbar"></div>
+          <div class="pad">
+            <h4>Múltiplos mecanismos explicam o efeito</h4>
+            <div class="diagram">
+              <div class="hub"><div>Agonista de GLP-1</div></div>
+              <div class="branches">
+                <div class="nodes">
+                  <div class="node"><b>Natriurese</b><span>Reduz volume intravascular</span></div>
+                  <div class="node"><b>Vasodilatação</b><span>Mais óxido nítrico</span></div>
+                  <div class="node"><b>Inibição do SRAA</b><span>Atenua renina-angiotensina</span></div>
+                  <div class="node"><b>Inflamação</b><span>Menos estresse oxidativo</span></div>
+                </div>
+                <div class="outcome">Redução da pressão arterial</div>
+              </div>
+            </div>
+          </div>
+          <div class="refs">1. Moiz A, et al. Am J Hypertens. 2025. PMID 39565030</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr class="hr" />
+
+  <!-- DECISÃO -->
+  <div class="section">
+    <h2>Como escolher</h2>
+    <p class="lede">As quatro são viáveis. A pergunta não é qual é mais bonita, é para qual sala o deck vai.</p>
+    <table>
+      <thead><tr><th>Opção</th><th>Boa para</th><th>Custo</th><th>Risco</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>1 · Clínico</b><br><span class="note">o atual</span></td>
+          <td>Aula, ambulatório, sala clara. Lê como artigo de revista.</td>
+          <td>Zero — já está em produção.</td>
+          <td>Discreto demais para patrocínio; não impressiona num congresso.</td>
+        </tr>
+        <tr>
+          <td><b>2 · Congresso</b></td>
+          <td>Auditório escuro, simpósio, material patrocinado. É o visual da referência da Novo Nordisk.</td>
+          <td>~1 dia: tokens + revisar contraste do ouro em texto pequeno.</td>
+          <td>Ouro sobre escuro reprova em texto de corpo se usado sem cuidado; imprime mal.</td>
+        </tr>
+        <tr>
+          <td><b>3 · Residência</b></td>
+          <td>Protocolo, plantão, checklist. Legível de longe, imprime bem em P&amp;B.</td>
+          <td>~1 dia.</td>
+          <td>Genérico. Sem serifa e com azul, encosta em “slide de hospital” padrão.</td>
+        </tr>
+        <tr>
+          <td><b>4 · Precisão</b></td>
+          <td>Quem quer que o deck não pareça feito por IA. Editorial, muito respiro.</td>
+          <td>~1 dia + disciplina: exige menos texto por slide.</td>
+          <td>Só funciona com pouco conteúdo. Slide cheio destrói o efeito.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="rec" style="margin-top:var(--s5)">
+      <b>Recomendação:</b> manter o <b>Clínico</b> como padrão e implementar o <b>Congresso</b> como segundo tema selecionável, não como substituto.
+      São públicos diferentes — aula em sala clara e simpósio em auditório escuro — e o sistema de tokens já suporta os dois sem tocar em componente nenhum.
+      As opções 3 e 4 só valem depois, se aparecer demanda: uma é mais genérica que o que já temos, a outra exige um deck mais enxuto do que o gerador entrega hoje.
+    </div>
+  </div>
+
+</div>
+
+<script>
+const THEMES = {
+  clinico: {
+    title: "Opção 1 — Clínico (atual)",
+    desc: "Papel levemente quente, tinta azul-escura e um verde clínico único. Serifa editorial no título, sem serifa no corpo. É o que está em produção: calmo, legível em sala clara, com cara de publicação médica em vez de apresentação corporativa.",
+    when: "<b>Use quando:</b> aula para residentes, ambulatório, reunião de serviço — qualquer sala com luz acesa."
+  },
+  congresso: {
+    title: "Opção 2 — Congresso",
+    desc: "Fundo azul-noite, ouro como único acento, serifa de alto contraste. É o registro do material patrocinado de simpósio — o mesmo do slide da Novo Nordisk que você mandou. Denso, caro, feito para auditório escuro e projetor potente.",
+    when: "<b>Use quando:</b> simpósio, congresso, material com patrocínio ou marca de terceiros. <b>Cuidado:</b> ouro em texto pequeno precisa de checagem de contraste — veja a seção abaixo."
+  },
+  residencia: {
+    title: "Opção 3 — Residência",
+    desc: "Sem serifa em lugar nenhum, branco puro, azul médico saturado e tipo grande. Nada de ornamento: hierarquia por peso e tamanho. Sobrevive a projetor ruim, sala clara e impressão em preto e branco.",
+    when: "<b>Use quando:</b> protocolo institucional, checklist de plantão, treinamento de equipe — material para ser consultado, não admirado."
+  },
+  precisao: {
+    title: "Opção 4 — Precisão",
+    desc: "Quase monocromático: tinta quase preta sobre off-white, com um único laranja de sinal para o que importa. Grotesk no título, muito espaço em branco. O oposto de “template de IA”.",
+    when: "<b>Use quando:</b> o deck precisa parecer autoral. <b>Exige</b> pouco texto por slide — com quatro tópicos longos o efeito desaparece."
+  }
+};
+
+const TOKENS = [
+  ["--paper","Fundo da aplicação"],
+  ["--surface","Cartão, campo, slide claro"],
+  ["--surface-alt","Fundo secundário"],
+  ["--ink","Texto principal e botão primário"],
+  ["--ink-soft","Texto de corpo e tópicos"],
+  ["--ink-faint","Metadado, legenda, referência"],
+  ["--rule","Borda e divisória"],
+  ["--accent","Acento: marca, foco, diagrama"],
+  ["--accent-deep","Acento em texto e hover"],
+  ["--accent-tint","Fundo de destaque suave"],
+  ["--signal","Erro e alerta"],
+];
+
+const CONTRASTS = [
+  ["Corpo sobre superfície","--ink-soft","--surface",4.5],
+  ["Título sobre fundo","--ink","--paper",4.5],
+  ["Metadado sobre superfície","--ink-faint","--surface",4.5],
+  ["Botão primário","--paper","--ink",4.5],
+  ["Acento sobre superfície","--accent-deep","--surface",4.5],
+  ["Erro sobre fundo","--signal","--paper",4.5],
+];
+
+function readVar(name){
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+function toRgb(hex){
+  const h = hex.replace("#","");
+  const n = h.length === 3 ? h.split("").map(c=>c+c).join("") : h;
+  return [0,2,4].map(i=>parseInt(n.slice(i,i+2),16));
+}
+function luminance(hex){
+  const [r,g,b] = toRgb(hex).map(v=>{
+    const s = v/255;
+    return s <= 0.03928 ? s/12.92 : Math.pow((s+0.055)/1.055, 2.4);
+  });
+  return 0.2126*r + 0.7152*g + 0.0722*b;
+}
+function ratio(a,b){
+  const l1 = luminance(a), l2 = luminance(b);
+  return (Math.max(l1,l2)+0.05)/(Math.min(l1,l2)+0.05);
+}
+
+function render(){
+  const theme = document.documentElement.dataset.theme;
+  const meta = THEMES[theme];
+  document.getElementById("opt-title").textContent = meta.title;
+  document.getElementById("opt-desc").textContent = meta.desc;
+  document.getElementById("opt-when").innerHTML = meta.when;
+
+  document.getElementById("swatches").innerHTML = TOKENS.map(([tok,use])=>{
+    const val = readVar(tok);
+    return `<div class="sw">
+      <div class="chip" style="background:${val}"></div>
+      <div class="meta">
+        <div class="name">${tok.replace("--","")}</div>
+        <div class="hex">${val.toUpperCase()}</div>
+        <div class="use">${use}</div>
+      </div>
+    </div>`;
+  }).join("");
+
+  document.getElementById("contrast").innerHTML = CONTRASTS.map(([label,fg,bg,min])=>{
+    const r = ratio(readVar(fg), readVar(bg));
+    const ok = r >= min;
+    return `<div class="ct">
+      <div class="row"><span>${label}</span><span class="ratio ${ok?'pass':'fail'}">${r.toFixed(2)}</span></div>
+      <div class="note">${ok ? `passa AA (mín. ${min})` : `<b>reprova</b> — mínimo ${min}`}</div>
+    </div>`;
+  }).join("");
+
+  const scale = [
+    ["display/xl","6.8cqw → 44px","Capa"],
+    ["display/l","4.2cqw → 28px","Título de slide"],
+    ["display/m","28px","Título de seção da UI"],
+    ["body/l","17px","Texto de destaque"],
+    ["body/m","15px","Padrão da interface"],
+    ["body/s","13px","Metadado, chip"],
+    ["mono/s","12.5px","Hex, PMID, número"],
+  ];
+  document.getElementById("type").innerHTML = scale.map(([n,s,u],i)=>`
+    <div class="spec">
+      <div class="lbl">${n}<br>${s}</div>
+      <div>
+        <div style="${i<3?`font-family:var(--font-display);font-weight:var(--display-weight);`:""}font-size:${[38,28,24,17,15,13,12.5][i]}px;line-height:1.2">
+          Lactato acima de 2 mmol/L define choque
+        </div>
+        <div class="note" style="margin-top:4px">${u}</div>
+      </div>
+    </div>`).join("");
+
+  document.getElementById("spacing").innerHTML = [4,8,12,16,24,32,48,64].map((v,i)=>`
+    <div style="text-align:center">
+      <div style="width:${v}px;height:32px;background:var(--accent);border-radius:2px;margin:0 auto"></div>
+      <div class="note" style="margin-top:6px">s${i+1}<br>${v}</div>
+    </div>`).join("");
+}
+
+document.getElementById("picker").addEventListener("click", (e)=>{
+  const btn = e.target.closest("button");
+  if(!btn) return;
+  document.documentElement.dataset.theme = btn.dataset.t;
+  [...e.currentTarget.querySelectorAll("button")].forEach(b=>
+    b.setAttribute("aria-pressed", String(b === btn)));
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
