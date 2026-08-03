@@ -174,6 +174,18 @@ export const applyOps = internalMutation({
       if (!candidate) continue;
       const at = Math.max(0, Math.min(slides.length, index(op)));
       slides.splice(at, 0, candidate);
+      // A new slide can be born with generated art — "adicione um slide com
+      // ilustração" is one request, and making the user add the slide and then
+      // ask again for its picture is the product failing to hear the sentence.
+      const newArt = op.imagePrompt?.trim();
+      if (newArt) {
+        aiRequests.push({
+          node: candidate,
+          prompt: newArt,
+          alta: op.altaQualidade === true,
+          estilo: op.estilo === "ilustracao" ? "ilustracao" : "foto",
+        });
+      }
       // A slide added by chat starts bare. Left that way it sits next to slides
       // that carry a photo and a footnote and reads as broken, so it queues for
       // the same enrichment the generator runs.

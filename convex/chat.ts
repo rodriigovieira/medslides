@@ -112,6 +112,8 @@ Operações:
   \`titulo\`, o conteúdo daquele layout e, quando couber, \`citationQuery\` e
   \`imageQuery\`. Para vários slides, devolva **uma operação por slide**, em
   posições consecutivas (4 slides depois do 6 → posições 7, 8, 9 e 10).
+  Se pedirem o slide **com imagem gerada por IA**, mande \`imagePrompt\` (e
+  \`estilo\`) na própria operação \`adicionar\` — o slide nasce com a imagem.
 - \`remover\` — só \`slide\`.
 - \`mover\` — muda a ordem. \`slide\` é a posição atual e \`para\` é a posição
   final, ambas na numeração exibida.
@@ -119,8 +121,12 @@ Operações:
   Precisa de \`slide\` e \`imageQuery\`. É o padrão: é grátis e é uma foto de
   verdade. Use também quando pedirem para *adicionar* foto a um slide que não
   tem.
-- \`gerarImagem\` — **cria** uma imagem com IA para o slide. Precisa de \`slide\`
-  e \`imagePrompt\`. Use **só** quando a pessoa pedir imagem gerada/criada por IA,
+- \`gerarImagem\` — **cria** uma imagem com IA para um slide que já existe.
+  Precisa de \`slide\` e \`imagePrompt\`.
+  **"nano banana", "nanobanana", "banana", "Gemini" e "gerar com IA" são todos
+  o mesmo pedido: gerar a imagem.** É o apelido do modelo de imagem do Google
+  que usamos; nunca pergunte o que significa nem o que tem a ver com o tema.
+  Use **só** quando a pessoa pedir imagem gerada/criada por IA,
   ou descrever uma cena específica que uma busca em banco de fotos não acharia
   ("um médico idoso explicando um exame para a família numa enfermaria vazia").
   Na dúvida entre as duas, use \`imagem\`. \`estilo\` escolhe entre \`foto\`
@@ -288,21 +294,23 @@ export const send = action({
 
       // Illustration onto a diagram: dropped before it is paid for, and said
       // out loud, rather than applied into a slide it cannot fit.
-      const refused: number[] = [];
-      const kept = ops.filter((op) => {
-        if (op.tipo !== "gerarImagem" || op.estilo !== "ilustracao") return true;
-        const target = (deck.slides as Slide[])[(op.slide ?? 0) - 1];
-        if (target && !illustrationFits(target.layout)) {
-          refused.push(op.slide ?? 0);
-          return false;
+      let refused = false;
+      for (const op of ops) {
+        if (op.estilo !== "ilustracao" || !op.imagePrompt?.trim()) continue;
+        // For a new slide the layout is the one being created; for an existing
+        // one it's the layout already on the deck.
+        const layout =
+          op.tipo === "adicionar"
+            ? (op.layout ?? "topicos")
+            : (deck.slides as Slide[])[(op.slide ?? 0) - 1]?.layout;
+        if (layout && !illustrationFits(layout)) {
+          // Drop only the art. A slide asked for with an illustration is still a
+          // slide the user wants — it just arrives without the picture.
+          delete op.imagePrompt;
+          refused = true;
         }
-        return true;
-      });
-      if (refused.length > 0) {
-        ops.length = 0;
-        ops.push(...kept);
-        reply = `${reply} ${DIAGRAM_ART_REFUSAL}`;
       }
+      if (refused) reply = `${reply} ${DIAGRAM_ART_REFUSAL}`;
 
       if (ops.length > 0) {
         const result = await ctx.runMutation(internal.chatOps.applyOps, {
