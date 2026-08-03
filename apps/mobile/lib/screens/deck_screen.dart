@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
@@ -174,8 +176,7 @@ class _DeckBody extends ConsumerWidget {
               // phone. The film strip below follows it, not the other way
               // round.
               SizedBox(
-                height: MediaQuery.sizeOf(context).width * 9 / 16 -
-                    MedSpace.gutter,
+                height: _previewHeight(context),
                 child: PageView.builder(
                   controller: PageController(initialPage: index),
                   itemCount: deck.slides.length,
@@ -229,6 +230,19 @@ class _DeckBody extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// How tall the 16:9 preview may be.
+///
+/// Derived from the width, because that is what makes it a slide — but capped
+/// against the height, because in landscape `width * 9 / 16` comes out taller
+/// than the viewport itself and pushes the action row and the speaker notes
+/// clean off the bottom. Leaving the presenter is exactly when the phone is
+/// still on its side, so that is not a hypothetical orientation.
+double _previewHeight(BuildContext context) {
+  final size = MediaQuery.sizeOf(context);
+  final fromWidth = size.width * 9 / 16 - MedSpace.gutter;
+  return math.min(fromWidth, size.height * 0.5);
 }
 
 class _Actions extends ConsumerWidget {

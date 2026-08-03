@@ -56,11 +56,17 @@ class _IntroScreenState extends ConsumerState<IntroScreen> {
   }
 
   Future<void> _begin() async {
+    // Open the sheet first and mark the intro seen behind it. The other order
+    // races: marking it swaps HomeScreen in under this screen, and if that
+    // rebuild lands before the push, this State is unmounted, `context` is
+    // defunct and the tap does nothing at all — dropping the user on exactly
+    // the empty list this screen exists to skip past.
+    //
+    // The swap still happens, just underneath the open sheet, so closing the
+    // sheet lands on the deck list rather than back here.
+    final sheet = GenerateSheet.show(context);
     await markIntroSeen(ref);
-    if (!mounted) return;
-    // The gate swaps HomeScreen in underneath while this sheet is open, so
-    // closing the sheet lands on the deck list rather than back here.
-    await GenerateSheet.show(context);
+    await sheet;
   }
 
   @override

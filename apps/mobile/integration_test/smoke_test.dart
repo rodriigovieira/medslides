@@ -98,6 +98,17 @@ void main() {
 
     // 7. The AI chat. Disabled while the deck is still being written, so this
     // doubles as a check that the deck really did finish.
+    //
+    // Scrolled into view rather than tapped where it ought to be: the phone is
+    // still on its side coming out of the presenter, and a ListView only
+    // builds what is near the viewport, so the button is genuinely absent from
+    // the tree until the list is moved.
+    await tester.scrollUntilVisible(
+      find.text('Editar com IA'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await _settle(tester, const Duration(seconds: 1));
     await tester.tap(find.text('Editar com IA'));
     await _settle(tester, const Duration(seconds: 3));
     _mark('chat-sheet');
