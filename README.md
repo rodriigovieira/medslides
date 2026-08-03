@@ -1,8 +1,8 @@
 # MedSlides
 
 Apresentações de slides para médicos, geradas por IA. Você descreve o tema e o
-público; o app devolve a apresentação estruturada — com imagem de capa e notas
-do apresentador em cada slide — e exporta em `.pptx`.
+público; o app devolve a apresentação estruturada — com fotografia editorial e
+notas do apresentador em cada slide — e exporta em `.pptx`.
 
 **Ao vivo:** https://medslides.vercel.app
 
@@ -19,7 +19,7 @@ navegador ──(mutation decks.start)──▶ Convex
                                        │
                      grava os slides no doc conforme saem do modelo
                                        │
-                            fal.ai (FLUX) → Convex file storage
+                    Openverse/StockSnap → Convex file storage
                                        ▼
 navegador ◀──(useQuery decks.get, reativo)── slides aparecem um a um
 ```
@@ -90,7 +90,7 @@ As chaves ficam no Convex, não no `.env`:
 ```bash
 npx convex env set GEMINI_API_KEY  "..."
 npx convex env set OPENAI_API_KEY  "..."
-npx convex env set FAL_KEY         "..."
+# As imagens não precisam de chave.
 ```
 
 ## Deploy
@@ -104,7 +104,7 @@ publicasse só o front deixaria a Vercel na frente do Convex — que é exatamen
 como se cria um deck quebrado em produção. `pnpm ship` publica os dois na ordem
 certa.
 
-Para produção, as mesmas três chaves precisam existir no deployment de prod:
+Para produção, as duas chaves precisam existir no deployment de prod:
 
 ```bash
 npx convex env set GEMINI_API_KEY "..." --prod
@@ -119,8 +119,8 @@ Quando uma imagem não aparecer, rode o diagnóstico em vez de adivinhar — fal
 imagem é não-fatal de propósito, então ela é silenciosa:
 
 ```bash
-npx convex run --prod generate:diagnoseImage '{}'
-# [ "FAL_KEY presente: true", "prompt seguro: true", "imagem gerada: 360080 bytes", ... ]
+npx convex run --prod generate:diagnoseImage '{"query":"hospital corridor"}'
+# [ "query: hospital corridor", "segura: true", "resultados: 4", "download: 325290 bytes", ... ]
 ```
 
 ## Estrutura
@@ -133,7 +133,8 @@ npx convex run --prod generate:diagnoseImage '{}'
 | `src/components/SlideView.tsx` | Renderiza um slide; tudo em `cqw`, então serve de miniatura, editor e tela cheia. |
 | `convex/generate.ts` | A action de geração + `diagnoseImage`. |
 | `convex/lib/ai.ts` | Gemini → OpenAI com fallback. |
-| `convex/lib/images.ts` | fal.ai + filtro de segurança clínica. |
+| `convex/lib/stock.ts` | Busca no Openverse + filtro de segurança clínica. |
+| `convex/images.ts` | Cache das buscas de imagem. |
 | `convex/decks.ts` | CRUD, cotas e resolução das URLs de imagem. |
 
 Os seis layouts (`capa`, `secao`, `topicos`, `destaque`, `comparacao`,
@@ -149,6 +150,6 @@ navegador, não uma pessoa; o teto global é a proteção real.
 
 ## Aviso
 
-Conteúdo e imagens gerados por IA, para apoio na montagem de aulas. As imagens
-são ilustrativas e nunca registro clínico. Condutas, doses e referências devem
-ser conferidas antes de qualquer uso.
+Conteúdo gerado por IA, para apoio na montagem de aulas. As fotos são de banco
+(CC0), ilustrativas, e nunca registro clínico. Condutas, doses e referências
+devem ser conferidas antes de qualquer uso.
