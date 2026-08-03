@@ -1,7 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type { Deck } from "@/lib/deck";
+import {
+  playSlideMotion,
+  snapshotSlide,
+  stopSlideMotion,
+  type SlideRects,
+} from "@/lib/motion";
+import { SlideStage } from "./Motion";
 import { SlideView } from "./SlideView";
 
 /**
@@ -16,6 +29,9 @@ export function Presenter({ deck, onExit }: { deck: Deck; onExit: () => void }) 
   const [chromeVisible, setChromeVisible] = useState(true);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const hideTimer = useRef<number | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  /** Where the outgoing slide's shared elements were, measured just before the swap. */
+  const leaving = useRef<SlideRects | null>(null);
 
   const total = deck.slides.length;
   const slide = deck.slides[index];
@@ -29,11 +45,27 @@ export function Presenter({ deck, onExit }: { deck: Deck; onExit: () => void }) 
 
   const move = useCallback(
     (delta: number) => {
+      // Cancel first, then measure. Cancelling snaps anything mid-flight to the
+      // finished slide it was heading for, which is both what a presenter who
+      // taps twice quickly wants to see and the only position worth handing to
+      // the next transition — a rect sampled halfway through the last one would
+      // make the next element fly in from nowhere.
+      stopSlideMotion(stageRef.current);
+      leaving.current = snapshotSlide(stageRef.current);
       setIndex((i) => Math.min(total - 1, Math.max(0, i + delta)));
       wakeChrome();
     },
     [total, wakeChrome],
   );
+
+  // Layout effect, not effect: this measures the arriving slide and starts its
+  // animations in the frame React committed it, so nothing is ever painted in
+  // the wrong place first. On the first slide `leaving` is null and it is a
+  // build with no move.
+  useLayoutEffect(() => {
+    playSlideMotion(stageRef.current, leaving.current);
+    leaving.current = null;
+  }, [index]);
 
   // Arms the first auto-hide. Every later wake comes from an interaction
   // handler, so nothing sets state synchronously inside an effect.
@@ -89,13 +121,18 @@ export function Presenter({ deck, onExit }: { deck: Deck; onExit: () => void }) 
       <div className="relative flex flex-1 items-center justify-center overflow-hidden">
         {/* Portrait phones get the full width; taller viewports cap by height
             so the slide never overflows behind the controls. */}
-        <div className="w-full px-0 sm:px-6 md:max-w-[min(100%,calc((100vh-11rem)*16/9))]">
-          <SlideView
-            slide={slide}
-            index={index}
-            total={total}
-            references={deck.references}
-          />
+        <div
+          ref={stageRef}
+          className="w-full px-0 sm:px-6 md:max-w-[min(100%,calc((100vh-11rem)*16/9))]"
+        >
+          <SlideStage>
+            <SlideView
+              slide={slide}
+              index={index}
+              total={total}
+              references={deck.references}
+            />
+          </SlideStage>
         </div>
 
         {/* Tap zones — the whole left/right thirds, so no aiming required. */}
