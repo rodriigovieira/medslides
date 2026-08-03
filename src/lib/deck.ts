@@ -9,6 +9,28 @@ export type SlideLayout =
   | "fluxo"
   | "cards";
 
+/** A real article, verified against PubMed. Never model-authored. */
+export type Reference = {
+  n: number;
+  pmid: string;
+  title: string;
+  authors: string;
+  journal: string;
+  year: string;
+  url: string;
+};
+
+/**
+ * Vancouver-ish one-liner. Trailing periods are stripped from each part first —
+ * "et al." plus a joining "." produced "et al..".
+ */
+export function citationLine(ref: Reference): string {
+  const parts = [ref.authors, ref.journal, ref.year]
+    .map((part) => (part ?? "").trim().replace(/\.+$/, ""))
+    .filter(Boolean);
+  return parts.length > 0 ? `${parts.join(". ")}.` : "";
+}
+
 /** A box in a diagram layout: heading plus one short explanatory line. */
 export type DiagramNode = {
   heading: string;
@@ -24,7 +46,15 @@ export type Slide = {
   right?: { heading: string; bullets: string[] };
   stat?: { value: string; label: string };
   notes?: string;
+  /**
+   * Free-text citation the model proposed. Kept for older decks but never
+   * rendered as a citation — it is unverified.
+   */
   source?: string;
+  /** English description of the claim on this slide that needs evidence. */
+  citationQuery?: string;
+  /** 1-based numbers into `Deck.references`, filled in after verification. */
+  refs?: number[];
   /**
    * Diagram content. `mecanismo` uses hub + nodes + outcome, `fluxo` and
    * `cards` use nodes alone.
@@ -45,6 +75,8 @@ export type Deck = {
   subtitle: string;
   audience: string;
   slides: Slide[];
+  /** Deck-wide numbered bibliography; slides point into it via `refs`. */
+  references?: Reference[];
 };
 
 export type DeckRequest = {
@@ -149,6 +181,15 @@ export function sanitizeSlide(value: unknown): Slide | null {
 
   if (typeof raw.notes === "string" && raw.notes) slide.notes = raw.notes;
   if (typeof raw.source === "string" && raw.source) slide.source = raw.source;
+  if (typeof raw.citationQuery === "string" && raw.citationQuery) {
+    slide.citationQuery = raw.citationQuery;
+  }
+  if (Array.isArray(raw.refs)) {
+    const refs = raw.refs.filter(
+      (n): n is number => typeof n === "number" && Number.isInteger(n) && n > 0,
+    );
+    if (refs.length > 0) slide.refs = refs;
+  }
   if (typeof raw.imageQuery === "string" && raw.imageQuery) {
     slide.imageQuery = raw.imageQuery;
   }
@@ -304,7 +345,7 @@ export const DECK_SCHEMA = {
           },
           outcome: { type: "STRING" },
           notes: { type: "STRING" },
-          source: { type: "STRING" },
+          citationQuery: { type: "STRING" },
           imageQuery: { type: "STRING" },
         },
         required: ["layout", "title", "notes"],
@@ -320,7 +361,7 @@ export const DECK_SCHEMA = {
           "nodes",
           "outcome",
           "notes",
-          "source",
+          "citationQuery",
           "imageQuery",
         ],
       },
@@ -352,10 +393,20 @@ Quem lê seus slides está numa sala, à distância, com pouco tempo. O slide é
 
 - Título: uma afirmação, não um rótulo. "Lactato > 2 mmol/L define choque" ensina; "Lactato" não.
 - Tópicos: no máximo 5 por slide, cada um com no máximo 12 palavras. Sem frases completas, sem ponto final. Se um tópico precisa de mais que isso, ele é dois tópicos ou é um slide.
+- Nunca invente autor, ano, revista, DOI ou número de artigo em lugar nenhum do
+  slide — nem no título, nem nos tópicos, nem nas notas. Se uma afirmação
+  precisa de fonte, descreva-a em \`citationQuery\` e deixe o sistema achar.
 - Números concretos sempre que existirem: doses, cortes, prazos, percentuais. "Antibiótico precoce" é vago; "antibiótico na 1ª hora" é acionável.
 - Nada de "Introdução", "Objetivos", "Agenda", "Conclusão" como títulos genéricos — vá direto ao conteúdo.
 - \`notes\`: 2 a 4 frases do que o apresentador fala naquele slide. É aqui que mora a nuance, a ressalva e o contexto que não cabe na tela.
-- \`source\`: preencha apenas quando você tem confiança real na referência (diretriz, sociedade, ensaio marcante). Cite como "Surviving Sepsis Campaign 2021" ou "SBC, Diretriz de IC 2022". Nunca invente número de artigo, DOI, ano ou autor — na dúvida, deixe vazio.
+- \`citationQuery\`: **não escreva referência.** Escreva, em inglês, 4 a 10
+  palavras descrevendo a afirmação clínica do slide que precisa de evidência.
+  Um sistema separado busca no PubMed e anexa o artigo real; você nunca cita
+  nada diretamente, e nenhuma referência sua vai para o slide.
+  Ex.: título "Antibiótico na 1ª hora reduz mortalidade" →
+  \`citationQuery\`: \`early antibiotic administration sepsis mortality\`.
+  Preencha nos slides que afirmam conduta, dose, corte ou desfecho. Deixe vazio
+  em capa, seção, encerramento e em slides puramente descritivos.
 
 ## Estrutura
 

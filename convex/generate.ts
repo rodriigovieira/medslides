@@ -17,6 +17,11 @@ import {
   searchStock,
   type StockImage,
 } from "./lib/stock";
+import {
+  findReferences,
+  normalizeQuery as normalizeClaim,
+  type Reference,
+} from "./lib/pubmed";
 
 /** Don't write to the deck more than this often while streaming. */
 const PROGRESS_INTERVAL_MS = 500;
@@ -77,8 +82,9 @@ export const run = internalAction({
         model,
       });
 
-      // Images come after the text is committed, so a slow or failing image
-      // provider never delays — or breaks — a finished deck.
+      // References and images come after the text is committed, so a slow or
+      // failing external service never delays — or breaks — a finished deck.
+      await attachReferences(ctx, deckId, parsed.slides);
       await attachImages(ctx, deckId, parsed.slides, req.topic);
     } catch (error) {
       const message =
@@ -148,6 +154,78 @@ async function cachedSearch(
   // later deck on the same topic.
   await ctx.runMutation(internal.images.writeCache, { query, results });
   return results;
+}
+
+/**
+ * Verifies every claim the model flagged and attaches only what PubMed
+ * actually returned. A claim with no hit simply gets no reference — the one
+ * outcome we never allow is a citation nobody can look up.
+ */
+async function attachReferences(
+  ctx: ActionCtx,
+  deckId: Id<"decks">,
+  slides: Slide[],
+) {
+  const queries = [
+    ...new Set(
+      slides
+        .map((s) => normalizeClaim(s.citationQuery ?? ""))
+        .filter((q) => q.length >= 4),
+    ),
+  ].slice(0, 8); // one deck shouldn't hammer NCBI
+  if (queries.length === 0) return;
+
+  const byQuery = new Map<string, Reference[]>();
+  for (const query of queries) {
+    const cached = await ctx.runQuery(internal.images.readReferenceCache, {
+      query,
+    });
+    if (cached) {
+      byQuery.set(query, cached);
+      continue;
+    }
+    const found = await findReferences(query);
+    // Cache misses too, so a dead-end claim isn't re-searched by every deck.
+    await ctx.runMutation(internal.images.writeReferenceCache, {
+      query,
+      results: found,
+    });
+    byQuery.set(query, found);
+  }
+
+  // Number the bibliography once, deduped by PMID, in slide order.
+  const numbered: Array<Reference & { n: number }> = [];
+  const numberByPmid = new Map<string, number>();
+  const refsBySlide = new Map<number, number[]>();
+
+  slides.forEach((slide, index) => {
+    const query = normalizeClaim(slide.citationQuery ?? "");
+    const found = byQuery.get(query);
+    if (!found || found.length === 0) return;
+
+    const numbers: number[] = [];
+    for (const ref of found.slice(0, 2)) {
+      let n = numberByPmid.get(ref.pmid);
+      if (!n) {
+        n = numbered.length + 1;
+        numberByPmid.set(ref.pmid, n);
+        numbered.push({ ...ref, n });
+      }
+      numbers.push(n);
+    }
+    if (numbers.length > 0) refsBySlide.set(index, numbers);
+  });
+
+  if (numbered.length === 0) return;
+
+  await ctx.runMutation(internal.decks.attachReferences, {
+    deckId,
+    references: numbered,
+    slideRefs: [...refsBySlide.entries()].map(([slideIndex, refs]) => ({
+      slideIndex,
+      refs,
+    })),
+  });
 }
 
 async function attachImages(

@@ -37,6 +37,7 @@ export function Studio() {
       subtitle: record.subtitle,
       audience: record.audience,
       slides: record.slides,
+      references: record.references,
     };
   }, [record]);
 

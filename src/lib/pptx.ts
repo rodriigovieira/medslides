@@ -1,5 +1,10 @@
 import type PptxGenJS from "pptxgenjs";
-import { DIAGRAM_LAYOUTS, type Deck, type Slide } from "./deck";
+import {
+  DIAGRAM_LAYOUTS,
+  citationLine,
+  type Deck,
+  type Slide,
+} from "./deck";
 import { composeSlideImage, treatmentFor, type Treatment } from "./compose";
 import { renderDiagram } from "./pptxDiagram";
 
@@ -91,15 +96,30 @@ export async function exportPptx(deck: Deck) {
       });
     }
 
-    if (slide.source) {
-      s.addText(slide.source, {
-        x: MARGIN,
-        y: H - 0.52,
-        w: CONTENT_W - 1.4,
-        h: 0.3,
-        fontSize: 9,
-        color: dark ? PAPER_FAINT : INK_FAINT,
-      });
+    // Only PubMed-verified references reach the slide.
+    const cited = (slide.refs ?? [])
+      .map((n) => deck.references?.find((r) => r.n === n))
+      .filter((r): r is NonNullable<typeof r> => Boolean(r))
+      .slice(0, 2);
+    if (cited.length > 0) {
+      s.addText(
+        cited
+          .map(
+            (r) =>
+              `${r.n}. ${citationLine(r)} PMID ${r.pmid}`,
+          )
+          .join("\n"),
+        {
+          x: MARGIN,
+          y: H - 0.72,
+          w: CONTENT_W - 1.4,
+          h: 0.5,
+          fontSize: 7.5,
+          color: dark ? PAPER_FAINT : INK_FAINT,
+          valign: "bottom",
+          lineSpacingMultiple: 1.15,
+        },
+      );
     }
 
     // CC0 requires no attribution, so the credit rides in the speaker notes
@@ -108,7 +128,62 @@ export async function exportPptx(deck: Deck) {
     if (notes) s.addNotes(notes);
   });
 
+  addReferencesSlide(pptx, deck);
+
   await pptx.writeFile({ fileName: `${slugify(deck.title)}.pptx` });
+}
+
+/** Closing bibliography — every entry has a PMID the audience can look up. */
+function addReferencesSlide(
+  pptx: InstanceType<typeof PptxGenJS>,
+  deck: Deck,
+) {
+  const refs = deck.references ?? [];
+  if (refs.length === 0) return;
+
+  const s = pptx.addSlide();
+  s.background = { color: PAPER };
+  s.addShape("rect", {
+    x: 0,
+    y: 0,
+    w: 1.5,
+    h: 0.085,
+    fill: { color: CLINICAL },
+    line: { type: "none" },
+  });
+  s.addText("Referências", {
+    x: MARGIN,
+    y: 0.75,
+    w: CONTENT_W,
+    h: 0.6,
+    fontSize: 24,
+    color: INK,
+    valign: "top",
+  });
+
+  s.addText(
+    refs.map((r) => ({
+      text: `${r.n}. ${r.title}. ${citationLine(r)} PMID ${r.pmid}`,
+      options: {
+        fontSize: refs.length > 8 ? 8.5 : 10,
+        color: INK_SOFT,
+        breakLine: true,
+        paraSpaceAfter: 4,
+      },
+    })),
+    {
+      x: MARGIN,
+      y: 1.5,
+      w: CONTENT_W,
+      h: H - 2.2,
+      valign: "top",
+      lineSpacingMultiple: 1.1,
+    },
+  );
+
+  s.addNotes(
+    "Referências localizadas no PubMed a partir do tema de cada slide. Confirme se sustentam a afirmação antes de apresentar.",
+  );
 }
 
 function renderSlide(

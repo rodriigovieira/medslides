@@ -198,3 +198,33 @@ export const fail = internalMutation({
     });
   },
 });
+
+export const attachReferences = internalMutation({
+  args: {
+    deckId: v.id("decks"),
+    references: v.array(
+      v.object({
+        n: v.number(),
+        pmid: v.string(),
+        title: v.string(),
+        authors: v.string(),
+        journal: v.string(),
+        year: v.string(),
+        url: v.string(),
+      }),
+    ),
+    slideRefs: v.array(
+      v.object({ slideIndex: v.number(), refs: v.array(v.number()) }),
+    ),
+  },
+  handler: async (ctx, { deckId, references, slideRefs }) => {
+    const deck = await ctx.db.get(deckId);
+    if (!deck) return;
+    const byIndex = new Map(slideRefs.map((r) => [r.slideIndex, r.refs]));
+    const slides = deck.slides.map((slide, index) => {
+      const refs = byIndex.get(index);
+      return refs ? { ...slide, refs } : slide;
+    });
+    await ctx.db.patch(deckId, { references, slides });
+  },
+});

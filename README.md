@@ -61,6 +61,25 @@ clínico (raio-X, TC, histologia, lesão) e ignora negações, senão o próprio
 CC0 não exige atribuição, então o crédito fica nas notas do apresentador em vez
 de sujar o slide.
 
+### Referências verificadas
+
+O modelo **nunca escreve uma citação.** Ele escreve um `citationQuery` — a
+afirmação clínica do slide, em inglês — e um passo separado busca no PubMed
+(E-utilities, sem chave de API) e anexa só o que voltou com PMID real.
+
+Isso é deliberado e é a parte mais importante do produto. Uma citação inventada
+com cara de precisa (`Am J Hypertens. 2025;38(3):e0025`) num slide clínico não é
+um bug cosmético: é o que faz a ferramenta ser proibida num hospital. Se o
+PubMed não devolve nada, o slide fica **sem** referência.
+
+A busca é em três camadas, evidência mais forte primeiro: diretriz e
+meta-análise → ensaio randomizado e revisão → busca livre. O limite anônimo do
+NCBI é 3 req/s, então tudo passa pela tabela `referenceCache` (TTL de 30 dias) e
+as chamadas são serializadas.
+
+Cada slide mostra as citações numeradas no rodapé; o `.pptx` ganha um slide final
+de "Referências" com título completo e PMID.
+
 ### Tratamento visual
 
 A foto tem três usos, e não um fundo único — foi o fundo único que deixava tudo
@@ -134,6 +153,7 @@ npx convex run --prod generate:diagnoseImage '{"query":"hospital corridor"}'
 | `convex/generate.ts` | A action de geração + `diagnoseImage`. |
 | `convex/lib/ai.ts` | Gemini → OpenAI com fallback. |
 | `convex/lib/stock.ts` | Busca no Openverse + filtro de segurança clínica. |
+| `convex/lib/pubmed.ts` | Verificação de referências no PubMed. |
 | `convex/images.ts` | Cache das buscas de imagem. |
 | `convex/decks.ts` | CRUD, cotas e resolução das URLs de imagem. |
 
@@ -150,6 +170,8 @@ navegador, não uma pessoa; o teto global é a proteção real.
 
 ## Aviso
 
-Conteúdo gerado por IA, para apoio na montagem de aulas. As fotos são de banco
+Conteúdo gerado por IA, para apoio na montagem de aulas. As referências são
+artigos reais do PubMed, buscados pelo tema do slide — confirme se sustentam a
+afirmação específica antes de apresentar. As fotos são de banco
 (CC0), ilustrativas, e nunca registro clínico. Condutas, doses e referências
 devem ser conferidas antes de qualquer uso.

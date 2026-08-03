@@ -1,4 +1,9 @@
-import { DIAGRAM_LAYOUTS, type Slide } from "@/lib/deck";
+import {
+  DIAGRAM_LAYOUTS,
+  citationLine,
+  type Reference,
+  type Slide,
+} from "@/lib/deck";
 import { Diagram } from "./Diagram";
 
 /**
@@ -14,10 +19,12 @@ export function SlideView({
   slide,
   index,
   total,
+  references,
 }: {
   slide: Slide;
   index: number;
   total: number;
+  references?: Reference[];
 }) {
   const image = slide.imageUrl;
   const treatment = imageTreatment(slide);
@@ -81,6 +88,7 @@ export function SlideView({
         total={total}
         dark={dark}
         treatment={treatment}
+        references={references}
       />
     </div>
   );
@@ -110,24 +118,37 @@ function Footer({
   total,
   dark,
   treatment,
+  references,
 }: {
   slide: Slide;
   index: number;
   total: number;
   dark: boolean;
   treatment: "full" | "panel" | "none";
+  references?: Reference[];
 }) {
   const faint = dark ? "text-paper/55" : "text-ink-faint";
+  // Only references that were actually verified reach the slide.
+  const cited = (slide.refs ?? [])
+    .map((n) => references?.find((r) => r.n === n))
+    .filter((r): r is Reference => Boolean(r))
+    .slice(0, 2);
   // With a photo panel on the right, the page number has to stay in the text
   // column — over the photo it's unreadable.
   const numberRight = treatment === "panel" ? "right-[44cqw]" : "right-[7cqw]";
   return (
     <>
-      {slide.source && (
+      {cited.length > 0 && (
         <div
-          className={`absolute bottom-[3.2cqw] left-[7cqw] max-w-[58cqw] truncate text-[1.45cqw] ${faint}`}
+          className={`absolute bottom-[2.6cqw] left-[7cqw] max-w-[62cqw] space-y-[0.3cqw] text-[1.25cqw] leading-tight ${faint}`}
         >
-          {slide.source}
+          {cited.map((ref) => (
+            <div key={ref.n} className="truncate">
+              <span className="tabular-nums">{ref.n}.</span>{" "}
+              {citationLine(ref)}{" "}
+              <span className="opacity-70">PMID {ref.pmid}</span>
+            </div>
+          ))}
         </div>
       )}
       {slide.layout !== "capa" && (

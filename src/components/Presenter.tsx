@@ -90,7 +90,12 @@ export function Presenter({ deck, onExit }: { deck: Deck; onExit: () => void }) 
         {/* Portrait phones get the full width; taller viewports cap by height
             so the slide never overflows behind the controls. */}
         <div className="w-full px-0 sm:px-6 md:max-w-[min(100%,calc((100vh-11rem)*16/9))]">
-          <SlideView slide={slide} index={index} total={total} />
+          <SlideView
+            slide={slide}
+            index={index}
+            total={total}
+            references={deck.references}
+          />
         </div>
 
         {/* Tap zones — the whole left/right thirds, so no aiming required. */}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { Deck } from "@/lib/deck";
+import { citationLine, type Deck } from "@/lib/deck";
 import { exportPptx } from "@/lib/pptx";
 import { SlideView } from "./SlideView";
 
@@ -166,6 +166,7 @@ export function DeckWorkspace({
                   slide={slide}
                   index={clamped}
                   total={deck.slides.length}
+                  references={deck.references}
                 />
               </div>
 
@@ -204,16 +205,11 @@ export function DeckWorkspace({
                 <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-ink-soft">
                   {slide.notes || "—"}
                 </p>
-                {(slide.source || slide.imageCredit) && (
-                  <div className="mt-4 space-y-1 border-t border-rule pt-3 text-sm text-ink-faint">
-                    {slide.source && (
-                      <p>
-                        Referência citada: {slide.source} — confirme antes de
-                        apresentar.
-                      </p>
-                    )}
-                    {slide.imageCredit && <p>{slide.imageCredit}</p>}
-                  </div>
+                <SlideReferences slide={slide} references={deck.references} />
+                {slide.imageCredit && (
+                  <p className="mt-3 text-sm text-ink-faint">
+                    {slide.imageCredit}
+                  </p>
                 )}
               </div>
             </>
@@ -229,6 +225,49 @@ export function DeckWorkspace({
           )}
         </main>
       </div>
+    </div>
+  );
+}
+
+/** Full citations for the current slide, each linking to PubMed. */
+function SlideReferences({
+  slide,
+  references,
+}: {
+  slide: Deck["slides"][number];
+  references?: Deck["references"];
+}) {
+  const cited = (slide.refs ?? [])
+    .map((n) => references?.find((r) => r.n === n))
+    .filter((r): r is NonNullable<typeof r> => Boolean(r));
+  if (cited.length === 0) return null;
+
+  return (
+    <div className="mt-4 border-t border-rule pt-3">
+      <h3 className="text-xs font-medium uppercase tracking-wider text-ink-faint">
+        Referências deste slide
+      </h3>
+      <ol className="mt-2 space-y-2">
+        {cited.map((ref) => (
+          <li key={ref.n} className="text-sm leading-snug text-ink-soft">
+            <span className="tabular-nums text-ink-faint">{ref.n}.</span>{" "}
+            {ref.title}{" "}
+            <span className="text-ink-faint">{citationLine(ref)}</span>{" "}
+            <a
+              href={ref.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-clinical underline underline-offset-2 hover:text-clinical-deep"
+            >
+              PMID {ref.pmid}
+            </a>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-2 text-xs text-ink-faint">
+        Encontradas no PubMed a partir do tema do slide. Confirme se sustentam a
+        afirmação antes de apresentar.
+      </p>
     </div>
   );
 }
@@ -270,7 +309,7 @@ function Thumbnails({
                 : "border-rule group-hover:border-ink-faint"
             }`}
           >
-            <SlideView slide={s} index={i} total={deck.slides.length} />
+            <SlideView slide={s} index={i} total={deck.slides.length} references={deck.references} />
           </span>
         </button>
       ))}

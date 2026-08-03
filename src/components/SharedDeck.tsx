@@ -28,6 +28,7 @@ export function SharedDeck({ deckId }: { deckId: string }) {
     subtitle: record.subtitle,
     audience: record.audience,
     slides: record.slides,
+    references: record.references,
   };
 
   return (

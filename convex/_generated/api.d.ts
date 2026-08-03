@@ -12,6 +12,7 @@ import type * as decks from "../decks.js";
 import type * as generate from "../generate.js";
 import type * as images from "../images.js";
 import type * as lib_ai from "../lib/ai.js";
+import type * as lib_pubmed from "../lib/pubmed.js";
 import type * as lib_stock from "../lib/stock.js";
 
 import type {
@@ -25,6 +26,7 @@ declare const fullApi: ApiFromModules<{
   generate: typeof generate;
   images: typeof images;
   "lib/ai": typeof lib_ai;
+  "lib/pubmed": typeof lib_pubmed;
   "lib/stock": typeof lib_stock;
 }>;
 

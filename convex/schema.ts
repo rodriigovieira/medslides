@@ -34,6 +34,9 @@ export const slideValidator = v.object({
   outcome: v.optional(v.string()),
   notes: v.optional(v.string()),
   source: v.optional(v.string()),
+  // Claim to verify against PubMed, and the resulting reference numbers.
+  citationQuery: v.optional(v.string()),
+  refs: v.optional(v.array(v.number())),
   // Short English search terms for stock photography.
   imageQuery: v.optional(v.string()),
   imageCredit: v.optional(v.string()),
@@ -71,6 +74,22 @@ export default defineSchema({
     provider: v.optional(v.union(v.literal("gemini"), v.literal("openai"))),
     model: v.optional(v.string()),
 
+    // Deck-wide bibliography. Every entry came back from PubMed with a real
+    // PMID — nothing here is model-authored.
+    references: v.optional(
+      v.array(
+        v.object({
+          n: v.number(),
+          pmid: v.string(),
+          title: v.string(),
+          authors: v.string(),
+          journal: v.string(),
+          year: v.string(),
+          url: v.string(),
+        }),
+      ),
+    ),
+
     clientId: v.string(),
     createdAt: v.number(),
   })
@@ -90,6 +109,23 @@ export default defineSchema({
         creator: v.string(),
         sourceUrl: v.string(),
         license: v.string(),
+      }),
+    ),
+    fetchedAt: v.number(),
+  }).index("by_query", ["query"]),
+
+  // PubMed allows 3 requests/second anonymously, so verified references are
+  // cached by normalized claim and reused across decks.
+  referenceCache: defineTable({
+    query: v.string(),
+    results: v.array(
+      v.object({
+        pmid: v.string(),
+        title: v.string(),
+        authors: v.string(),
+        journal: v.string(),
+        year: v.string(),
+        url: v.string(),
       }),
     ),
     fetchedAt: v.number(),
