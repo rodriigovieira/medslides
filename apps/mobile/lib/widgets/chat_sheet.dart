@@ -267,6 +267,8 @@ class _ChatSheetState extends ConsumerState<ChatSheet> {
                         height: 1.5,
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    _MotionMenu(onSend: _send),
                   ],
                 ],
               ),
@@ -365,6 +367,131 @@ class _Bubble extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+
+/// What to say to get each animation.
+///
+/// The motion vocabulary is only reachable through the chat, which makes it
+/// invisible: there is no menu to browse, and a doctor has no reason to guess
+/// that the word "herói" means anything. This is that menu, the same one the
+/// web grew for the same reason — every line is a sentence you can send, and
+/// tapping one sends it.
+///
+/// It doubles as the honest list of limits. Someone deciding whether this
+/// replaces the specialist they pay needs to know what it will not do, and
+/// finding that out mid-demo in front of a customer is the wrong moment.
+class _MotionMenu extends StatefulWidget {
+  const _MotionMenu({required this.onSend});
+
+  final void Function(String prompt) onSend;
+
+  @override
+  State<_MotionMenu> createState() => _MotionMenuState();
+}
+
+class _MotionMenuState extends State<_MotionMenu> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final recipes = <(String, String)>[
+      (l10n.motionPromptAll, l10n.motionEffectAll),
+      (l10n.motionPromptHero, l10n.motionEffectHero),
+      (l10n.motionPromptMorph, l10n.motionEffectMorph),
+      (l10n.motionPromptSteps, l10n.motionEffectSteps),
+      (l10n.motionPromptNumber, l10n.motionEffectNumber),
+      (l10n.motionPromptNone, l10n.motionEffectNone),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _open = !_open),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              children: [
+                Icon(
+                  _open ? Icons.expand_less : Icons.expand_more,
+                  size: 18,
+                  color: MedColors.inkFaint,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  l10n.motionMenu,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: MedColors.inkSoft,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_open) ...[
+          const SizedBox(height: 4),
+          for (final (prompt, effect) in recipes)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(MedSpace.radiusSmall),
+                onTap: () => widget.onSend(prompt),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                    color: MedColors.paperRaised,
+                    border: Border.all(color: MedColors.rule),
+                    borderRadius: BorderRadius.circular(MedSpace.radiusSmall),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        prompt,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          color: MedColors.ink,
+                          height: 1.3,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        effect,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: MedColors.inkFaint,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          // The limits sit at the bottom of the menu rather than in a footnote
+          // somewhere: they are the part a customer needs before they decide,
+          // not after.
+          for (final limit in [l10n.motionLimitPptx, l10n.motionLimitReduced])
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                '· $limit',
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  height: 1.4,
+                  color: MedColors.inkFaint,
+                ),
+              ),
+            ),
+        ],
+      ],
     );
   }
 }

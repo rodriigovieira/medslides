@@ -1,6 +1,5 @@
 {
   "@@locale": "pt",
-
   "newDeck": "Nova apresentação",
   "emptyTitle": "Sua primeira apresentação",
   "emptyBody": "Descreva o tema — por escrito ou falando — e eu monto os slides, com referências buscadas no PubMed.",
@@ -10,11 +9,14 @@
   "deckSubtitle": "{count} slides · {audience}",
   "@deckSubtitle": {
     "placeholders": {
-      "count": { "type": "int" },
-      "audience": { "type": "String" }
+      "count": {
+        "type": "int"
+      },
+      "audience": {
+        "type": "String"
+      }
     }
   },
-
   "introTitle": "Descreva o tema.\nEu monto os slides.",
   "introBody": "Escrevo os slides e as notas do apresentador, e busco as referências no PubMed. Nenhuma citação é inventada: sem artigo real, sem referência.",
   "introMicTitle": "Falar em vez de digitar",
@@ -23,19 +25,16 @@
   "micAsking": "Aguardando…",
   "micGranted": "Microfone liberado",
   "start": "Começar",
-
   "micDeniedSpeechIntro": "Sem reconhecimento de fala. Dá para liberar nos Ajustes depois.",
   "micDeniedMicrophoneIntro": "Sem microfone. Dá para liberar nos Ajustes depois.",
   "micUnavailableIntro": "Este aparelho não faz ditado. Digitar funciona igual.",
   "micFailedIntro": "Não consegui pedir agora. Tente depois.",
-
   "micDeniedSpeech": "Autorize o reconhecimento de fala nos Ajustes para ditar.",
   "micDeniedMicrophone": "Autorize o microfone nos Ajustes para ditar.",
   "micUnavailable": "Ditado não está disponível neste aparelho.",
   "micFailed": "Não consegui ouvir. Tente de novo.",
   "dictate": "Ditar",
   "stopDictating": "Parar",
-
   "deckFallbackTitle": "Apresentação",
   "share": "Compartilhar",
   "deckNotFound": "Apresentação não encontrada.",
@@ -45,16 +44,18 @@
   "slideOfTotal": "{index} de {total}",
   "@slideOfTotal": {
     "placeholders": {
-      "index": { "type": "int" },
-      "total": { "type": "int" }
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "speakerNotes": "Notas do apresentador",
   "slideReferences": "Referências deste slide",
-
   "presenterHint": "Toque nas laterais para avançar · no meio para os controles · arraste para baixo para sair",
   "noNotes": "Sem notas neste slide.",
-
   "topicHint": "Ex.: sepse na emergência — reconhecimento e primeira hora",
   "audienceLabel": "Para quem",
   "slidesLabel": "Slides",
@@ -62,23 +63,22 @@
   "depthOverview": "Panorama",
   "depthDeep": "Aprofundado",
   "generateDeck": "Gerar apresentação",
-
   "audienceResidents": "Residentes e internos",
   "audienceSpecialists": "Colegas especialistas (congresso)",
   "audienceTeam": "Equipe multiprofissional",
   "audiencePatients": "Pacientes e familiares",
-
   "phaseText": "Escrevendo os slides",
   "phaseReferences": "Buscando referências no PubMed",
   "phaseImages": "Escolhendo as imagens",
   "phaseReady": "Pronta",
-
   "scopeSlide": "Este slide",
   "scopeDeck": "A apresentação",
   "scopeSlideNumbered": "Slide {index}",
   "@scopeSlideNumbered": {
     "placeholders": {
-      "index": { "type": "int" }
+      "index": {
+        "type": "int"
+      }
     }
   },
   "adjustingSlides": "Ajustando os slides…",
@@ -87,12 +87,13 @@
   "chatSlideBody": "Só o slide {index} muda. O resto da apresentação fica como está.",
   "@chatSlideBody": {
     "placeholders": {
-      "index": { "type": "int" }
+      "index": {
+        "type": "int"
+      }
     }
   },
   "chatDeckHint": "Ex.: deixe o slide 4 mais curto",
   "chatSlideHint": "Ex.: deixe mais curto e enfatize a dose",
-
   "suggestDeckOne": "Adicione 3 slides sobre contraindicações",
   "suggestDeckTwo": "No slide 4, enfatize a dose",
   "suggestDeckThree": "Troque a imagem do slide 2",
@@ -101,10 +102,24 @@
   "suggestSlideTwo": "Enfatize a dose",
   "suggestSlideThree": "Troque a imagem",
   "suggestSlideFour": "Some um exemplo clínico",
-
   "language": "Idioma",
   "languageAutomatic": "Automático (do aparelho)",
   "languagePortuguese": "Português",
   "languageEnglish": "English",
-  "languageNote": "Muda a interface e o idioma do ditado. Os slides continuam sendo gerados em português."
+  "languageNote": "Muda a interface e o idioma do ditado. Os slides continuam sendo gerados em português.",
+  "motionMenu": "O que dá para pedir de animação",
+  "motionPromptAll": "Anime a apresentação inteira",
+  "motionEffectAll": "Escolhe um efeito por slide conforme o layout. Acima de 3 slides ele descreve o plano e espera você confirmar.",
+  "motionPromptHero": "No slide 4, use o efeito herói",
+  "motionEffectHero": "O elemento central chega grande e sozinho, é lido, e então desliza para a esquerda encolhendo enquanto o resto do diagrama aparece. Só em slides com um conceito central.",
+  "motionPromptMorph": "Faça o slide 4 se transformar a partir do slide 3",
+  "motionEffectMorph": "O que os dois slides têm em comum — um número, um título, uma imagem — voa de uma posição para a outra em vez de sumir e reaparecer. É o Morph do PowerPoint.",
+  "motionPromptSteps": "No slide 5, revele uma etapa por vez",
+  "motionEffectSteps": "Cada passo do fluxo entra na ordem em que acontece.",
+  "motionPromptNumber": "Deixe o número do slide 3 mais solene",
+  "motionEffectNumber": "O número cresce sozinho, devagar. Bom para a estatística que sustenta o argumento.",
+  "motionPromptNone": "Tire a animação do slide 8",
+  "motionEffectNone": "Slide parado. Vale usar de propósito: numa apresentação boa a maioria dos slides não se mexe.",
+  "motionLimitPptx": "O movimento é só na tela. O .pptx exportado sai sem animação — o modelo do PowerPoint é outro, e uma tradução pela metade é pior que nenhuma.",
+  "motionLimitReduced": "Quem tem “reduzir movimento” ligado no sistema vê todos os slides inteiros e parados."
 }

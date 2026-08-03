@@ -246,4 +246,57 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get languageNote =>
       'Changes the interface and the dictation language. Slides are still generated in Portuguese.';
+
+  @override
+  String get motionMenu => 'What you can ask for, in motion';
+
+  @override
+  String get motionPromptAll => 'Animate the whole deck';
+
+  @override
+  String get motionEffectAll =>
+      'Picks one effect per slide to suit its layout. Past 3 slides it describes the plan and waits for you to confirm.';
+
+  @override
+  String get motionPromptHero => 'On slide 4, use the hero effect';
+
+  @override
+  String get motionEffectHero =>
+      'The central element arrives large and alone, is read, then slides left and shrinks while the rest of the diagram appears. Only on slides with a central concept.';
+
+  @override
+  String get motionPromptMorph => 'Make slide 4 morph out of slide 3';
+
+  @override
+  String get motionEffectMorph =>
+      'Whatever the two slides share — a number, a title, an image — flies from one position to the other instead of vanishing and reappearing. It is PowerPoint\'s Morph.';
+
+  @override
+  String get motionPromptSteps => 'On slide 5, reveal one step at a time';
+
+  @override
+  String get motionEffectSteps =>
+      'Each step of the flow arrives in the order it happens.';
+
+  @override
+  String get motionPromptNumber => 'Make the number on slide 3 more solemn';
+
+  @override
+  String get motionEffectNumber =>
+      'The number grows on its own, slowly. Good for the statistic the argument rests on.';
+
+  @override
+  String get motionPromptNone => 'Remove the animation from slide 8';
+
+  @override
+  String get motionEffectNone =>
+      'A still slide. Worth doing on purpose: in a good deck most slides do not move.';
+
+  @override
+  String get motionLimitPptx =>
+      'The motion is screen-only. The exported .pptx has no animation — PowerPoint\'s model is a different one, and a half-translation is worse than none.';
+
+  @override
+  String get motionLimitReduced =>
+      'Anyone with “reduce motion” on sees every slide whole and still.';
 }

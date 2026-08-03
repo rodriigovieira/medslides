@@ -246,4 +246,58 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get languageNote =>
       'Muda a interface e o idioma do ditado. Os slides continuam sendo gerados em português.';
+
+  @override
+  String get motionMenu => 'O que dá para pedir de animação';
+
+  @override
+  String get motionPromptAll => 'Anime a apresentação inteira';
+
+  @override
+  String get motionEffectAll =>
+      'Escolhe um efeito por slide conforme o layout. Acima de 3 slides ele descreve o plano e espera você confirmar.';
+
+  @override
+  String get motionPromptHero => 'No slide 4, use o efeito herói';
+
+  @override
+  String get motionEffectHero =>
+      'O elemento central chega grande e sozinho, é lido, e então desliza para a esquerda encolhendo enquanto o resto do diagrama aparece. Só em slides com um conceito central.';
+
+  @override
+  String get motionPromptMorph =>
+      'Faça o slide 4 se transformar a partir do slide 3';
+
+  @override
+  String get motionEffectMorph =>
+      'O que os dois slides têm em comum — um número, um título, uma imagem — voa de uma posição para a outra em vez de sumir e reaparecer. É o Morph do PowerPoint.';
+
+  @override
+  String get motionPromptSteps => 'No slide 5, revele uma etapa por vez';
+
+  @override
+  String get motionEffectSteps =>
+      'Cada passo do fluxo entra na ordem em que acontece.';
+
+  @override
+  String get motionPromptNumber => 'Deixe o número do slide 3 mais solene';
+
+  @override
+  String get motionEffectNumber =>
+      'O número cresce sozinho, devagar. Bom para a estatística que sustenta o argumento.';
+
+  @override
+  String get motionPromptNone => 'Tire a animação do slide 8';
+
+  @override
+  String get motionEffectNone =>
+      'Slide parado. Vale usar de propósito: numa apresentação boa a maioria dos slides não se mexe.';
+
+  @override
+  String get motionLimitPptx =>
+      'O movimento é só na tela. O .pptx exportado sai sem animação — o modelo do PowerPoint é outro, e uma tradução pela metade é pior que nenhuma.';
+
+  @override
+  String get motionLimitReduced =>
+      'Quem tem “reduzir movimento” ligado no sistema vê todos os slides inteiros e parados.';
 }

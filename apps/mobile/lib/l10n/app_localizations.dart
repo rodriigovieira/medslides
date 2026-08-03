@@ -535,6 +535,96 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Muda a interface e o idioma do ditado. Os slides continuam sendo gerados em português.'**
   String get languageNote;
+
+  /// No description provided for @motionMenu.
+  ///
+  /// In pt, this message translates to:
+  /// **'O que dá para pedir de animação'**
+  String get motionMenu;
+
+  /// No description provided for @motionPromptAll.
+  ///
+  /// In pt, this message translates to:
+  /// **'Anime a apresentação inteira'**
+  String get motionPromptAll;
+
+  /// No description provided for @motionEffectAll.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escolhe um efeito por slide conforme o layout. Acima de 3 slides ele descreve o plano e espera você confirmar.'**
+  String get motionEffectAll;
+
+  /// No description provided for @motionPromptHero.
+  ///
+  /// In pt, this message translates to:
+  /// **'No slide 4, use o efeito herói'**
+  String get motionPromptHero;
+
+  /// No description provided for @motionEffectHero.
+  ///
+  /// In pt, this message translates to:
+  /// **'O elemento central chega grande e sozinho, é lido, e então desliza para a esquerda encolhendo enquanto o resto do diagrama aparece. Só em slides com um conceito central.'**
+  String get motionEffectHero;
+
+  /// No description provided for @motionPromptMorph.
+  ///
+  /// In pt, this message translates to:
+  /// **'Faça o slide 4 se transformar a partir do slide 3'**
+  String get motionPromptMorph;
+
+  /// No description provided for @motionEffectMorph.
+  ///
+  /// In pt, this message translates to:
+  /// **'O que os dois slides têm em comum — um número, um título, uma imagem — voa de uma posição para a outra em vez de sumir e reaparecer. É o Morph do PowerPoint.'**
+  String get motionEffectMorph;
+
+  /// No description provided for @motionPromptSteps.
+  ///
+  /// In pt, this message translates to:
+  /// **'No slide 5, revele uma etapa por vez'**
+  String get motionPromptSteps;
+
+  /// No description provided for @motionEffectSteps.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cada passo do fluxo entra na ordem em que acontece.'**
+  String get motionEffectSteps;
+
+  /// No description provided for @motionPromptNumber.
+  ///
+  /// In pt, this message translates to:
+  /// **'Deixe o número do slide 3 mais solene'**
+  String get motionPromptNumber;
+
+  /// No description provided for @motionEffectNumber.
+  ///
+  /// In pt, this message translates to:
+  /// **'O número cresce sozinho, devagar. Bom para a estatística que sustenta o argumento.'**
+  String get motionEffectNumber;
+
+  /// No description provided for @motionPromptNone.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tire a animação do slide 8'**
+  String get motionPromptNone;
+
+  /// No description provided for @motionEffectNone.
+  ///
+  /// In pt, this message translates to:
+  /// **'Slide parado. Vale usar de propósito: numa apresentação boa a maioria dos slides não se mexe.'**
+  String get motionEffectNone;
+
+  /// No description provided for @motionLimitPptx.
+  ///
+  /// In pt, this message translates to:
+  /// **'O movimento é só na tela. O .pptx exportado sai sem animação — o modelo do PowerPoint é outro, e uma tradução pela metade é pior que nenhuma.'**
+  String get motionLimitPptx;
+
+  /// No description provided for @motionLimitReduced.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quem tem “reduzir movimento” ligado no sistema vê todos os slides inteiros e parados.'**
+  String get motionLimitReduced;
 }
 
 class _AppLocalizationsDelegate

@@ -118,9 +118,15 @@ class _MotionChildState extends State<MotionChild>
     super.didChangeDependencies();
     final scope = MotionScope.of(context);
 
-    // No scope, or no recipe: the slide is simply there. Anything already
-    // built stays built rather than snapping back to hidden.
-    if (scope == null || scope.plan.recipe == null) {
+    // "Reduce Motion" in iOS accessibility settings means every slide is
+    // simply there, whole and still. The web makes the same promise in the
+    // motion cheat sheet's list of limits, and a promise about accessibility
+    // that only one of the two surfaces keeps is worse than not making it.
+    final reduced = MediaQuery.disableAnimationsOf(context);
+
+    // No scope, no recipe, or reduced motion: the slide is simply there.
+    // Anything already built stays built rather than snapping back to hidden.
+    if (scope == null || scope.plan.recipe == null || reduced) {
       _controller?.dispose();
       _controller = null;
       _plan = null;

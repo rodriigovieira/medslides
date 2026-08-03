@@ -1,6 +1,5 @@
 {
   "@@locale": "en",
-
   "newDeck": "New deck",
   "emptyTitle": "Your first deck",
   "emptyBody": "Describe the topic — typed or spoken — and I'll build the slides, with references looked up on PubMed.",
@@ -8,7 +7,6 @@
   "retry": "Try again",
   "generating": "Building…",
   "deckSubtitle": "{count} slides · {audience}",
-
   "introTitle": "Describe the topic.\nI'll build the slides.",
   "introBody": "I write the slides and the speaker notes, and look the references up on PubMed. No citation is invented: no real paper, no reference.",
   "introMicTitle": "Speak instead of typing",
@@ -17,19 +15,16 @@
   "micAsking": "Waiting…",
   "micGranted": "Microphone allowed",
   "start": "Get started",
-
   "micDeniedSpeechIntro": "No speech recognition. You can allow it in Settings later.",
   "micDeniedMicrophoneIntro": "No microphone. You can allow it in Settings later.",
   "micUnavailableIntro": "This device can't dictate. Typing works just as well.",
   "micFailedIntro": "I couldn't ask just now. Try again later.",
-
   "micDeniedSpeech": "Allow speech recognition in Settings to dictate.",
   "micDeniedMicrophone": "Allow the microphone in Settings to dictate.",
   "micUnavailable": "Dictation isn't available on this device.",
   "micFailed": "I didn't catch that. Try again.",
   "dictate": "Dictate",
   "stopDictating": "Stop",
-
   "deckFallbackTitle": "Deck",
   "share": "Share",
   "deckNotFound": "Deck not found.",
@@ -39,10 +34,8 @@
   "slideOfTotal": "{index} of {total}",
   "speakerNotes": "Speaker notes",
   "slideReferences": "References on this slide",
-
   "presenterHint": "Tap the sides to move · the middle for controls · swipe down to leave",
   "noNotes": "No notes on this slide.",
-
   "topicHint": "e.g. sepsis in the ED — recognition and the first hour",
   "audienceLabel": "Audience",
   "slidesLabel": "Slides",
@@ -50,17 +43,14 @@
   "depthOverview": "Overview",
   "depthDeep": "In depth",
   "generateDeck": "Build the deck",
-
   "audienceResidents": "Residents and interns",
   "audienceSpecialists": "Fellow specialists (conference)",
   "audienceTeam": "Multidisciplinary team",
   "audiencePatients": "Patients and families",
-
   "phaseText": "Writing the slides",
   "phaseReferences": "Looking up references on PubMed",
   "phaseImages": "Choosing the images",
   "phaseReady": "Ready",
-
   "scopeSlide": "This slide",
   "scopeDeck": "Whole deck",
   "scopeSlideNumbered": "Slide {index}",
@@ -70,7 +60,6 @@
   "chatSlideBody": "Only slide {index} changes. The rest of the deck stays as it is.",
   "chatDeckHint": "e.g. make slide 4 shorter",
   "chatSlideHint": "e.g. make it shorter and stress the dose",
-
   "suggestDeckOne": "Add 3 slides on contraindications",
   "suggestDeckTwo": "On slide 4, stress the dose",
   "suggestDeckThree": "Swap the picture on slide 2",
@@ -79,10 +68,24 @@
   "suggestSlideTwo": "Stress the dose",
   "suggestSlideThree": "Swap the picture",
   "suggestSlideFour": "Add a clinical example",
-
   "language": "Language",
   "languageAutomatic": "Automatic (device)",
   "languagePortuguese": "Português",
   "languageEnglish": "English",
-  "languageNote": "Changes the interface and the dictation language. Slides are still generated in Portuguese."
+  "languageNote": "Changes the interface and the dictation language. Slides are still generated in Portuguese.",
+  "motionMenu": "What you can ask for, in motion",
+  "motionPromptAll": "Animate the whole deck",
+  "motionEffectAll": "Picks one effect per slide to suit its layout. Past 3 slides it describes the plan and waits for you to confirm.",
+  "motionPromptHero": "On slide 4, use the hero effect",
+  "motionEffectHero": "The central element arrives large and alone, is read, then slides left and shrinks while the rest of the diagram appears. Only on slides with a central concept.",
+  "motionPromptMorph": "Make slide 4 morph out of slide 3",
+  "motionEffectMorph": "Whatever the two slides share — a number, a title, an image — flies from one position to the other instead of vanishing and reappearing. It is PowerPoint's Morph.",
+  "motionPromptSteps": "On slide 5, reveal one step at a time",
+  "motionEffectSteps": "Each step of the flow arrives in the order it happens.",
+  "motionPromptNumber": "Make the number on slide 3 more solemn",
+  "motionEffectNumber": "The number grows on its own, slowly. Good for the statistic the argument rests on.",
+  "motionPromptNone": "Remove the animation from slide 8",
+  "motionEffectNone": "A still slide. Worth doing on purpose: in a good deck most slides do not move.",
+  "motionLimitPptx": "The motion is screen-only. The exported .pptx has no animation — PowerPoint's model is a different one, and a half-translation is worse than none.",
+  "motionLimitReduced": "Anyone with “reduce motion” on sees every slide whole and still."
 }

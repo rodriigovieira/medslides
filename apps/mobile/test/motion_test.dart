@@ -67,7 +67,7 @@ void main() {
         'title': 'Sepse',
         'animation': {'preset': 'numero', 'pace': 'solene'},
       });
-      expect(slide!.motion.preset, MotionPreset.numero);
+      expect(slide.motion.preset, MotionPreset.numero);
       expect(slide.motion.pace, MotionPace.solene);
     });
 
