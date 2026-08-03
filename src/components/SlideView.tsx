@@ -1,4 +1,5 @@
-import type { Slide } from "@/lib/deck";
+import { DIAGRAM_LAYOUTS, type Slide } from "@/lib/deck";
+import { Diagram } from "./Diagram";
 
 /**
  * Everything is sized in `cqw` against the slide's own width, so one component
@@ -91,6 +92,8 @@ function imageTreatment(slide: Slide): "full" | "panel" | "none" {
   if (slide.layout === "capa" || slide.layout === "secao") return "full";
   if (slide.layout === "destaque") return "full";
   if (slide.layout === "comparacao") return "none";
+  // Diagrams carry their own visual weight; a photo behind one only competes.
+  if (DIAGRAM_LAYOUTS.includes(slide.layout)) return "none";
   return "panel";
 }
 
@@ -142,6 +145,17 @@ function Body({ slide, dark }: { slide: Slide; dark: boolean }) {
   const muted = dark ? "text-paper/85" : "text-ink-soft";
   const faint = dark ? "text-paper/65" : "text-ink-faint";
   const rule = dark ? "bg-paper" : "bg-clinical";
+
+  if (DIAGRAM_LAYOUTS.includes(slide.layout)) {
+    return (
+      <>
+        <SlideTitle title={slide.title} subtitle={slide.subtitle} dark={dark} />
+        <div className="mt-[3cqw] flex flex-1 flex-col">
+          <Diagram slide={slide} dark={dark} />
+        </div>
+      </>
+    );
+  }
 
   switch (slide.layout) {
     case "capa":

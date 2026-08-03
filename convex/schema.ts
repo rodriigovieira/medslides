@@ -14,6 +14,9 @@ export const slideValidator = v.object({
     v.literal("destaque"),
     v.literal("comparacao"),
     v.literal("encerramento"),
+    v.literal("mecanismo"),
+    v.literal("fluxo"),
+    v.literal("cards"),
   ),
   title: v.string(),
   subtitle: v.optional(v.string()),
@@ -21,6 +24,14 @@ export const slideValidator = v.object({
   left: v.optional(column),
   right: v.optional(column),
   stat: v.optional(v.object({ value: v.string(), label: v.string() })),
+  // Diagram layouts: hub + nodes + outcome.
+  hub: v.optional(v.string()),
+  nodes: v.optional(
+    v.array(
+      v.object({ heading: v.string(), body: v.optional(v.string()) }),
+    ),
+  ),
+  outcome: v.optional(v.string()),
   notes: v.optional(v.string()),
   source: v.optional(v.string()),
   // Short English search terms for stock photography.

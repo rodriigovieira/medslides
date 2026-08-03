@@ -1,0 +1,215 @@
+import type { DiagramNode, Slide } from "@/lib/deck";
+
+/**
+ * Diagrams are laid out deterministically from the model's nodes — no image
+ * generation, no cost, and the same geometry drives the PowerPoint export.
+ * Everything is in `cqw` so it scales from thumbnail to projector.
+ */
+export function Diagram({ slide, dark }: { slide: Slide; dark: boolean }) {
+  const nodes = slide.nodes ?? [];
+  if (nodes.length === 0) return null;
+
+  switch (slide.layout) {
+    case "mecanismo":
+      return <Mechanism slide={slide} nodes={nodes} dark={dark} />;
+    case "fluxo":
+      return <Flow nodes={nodes} dark={dark} />;
+    default:
+      return <Cards nodes={nodes} dark={dark} />;
+  }
+}
+
+/** Connector with a visible head — the arrow is what makes it read as a flow. */
+function Arrow({
+  direction,
+  dark,
+}: {
+  direction: "right" | "down";
+  dark: boolean;
+}) {
+  const stroke = dark ? "rgba(247,246,242,0.55)" : "rgba(13,122,111,0.65)";
+  if (direction === "down") {
+    return (
+      <div className="flex justify-center">
+        <svg viewBox="0 0 12 26" className="h-[2.6cqw] w-[1.2cqw]" aria-hidden>
+          <path
+            d="M6 0v17"
+            fill="none"
+            stroke={stroke}
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
+          <path d="M6 25l-4.5-8h9z" fill={stroke} />
+        </svg>
+      </div>
+    );
+  }
+  return (
+    <div className="flex shrink-0 items-center">
+      <svg viewBox="0 0 26 12" className="h-[1.2cqw] w-[2.6cqw]" aria-hidden>
+        <path
+          d="M0 6h17"
+          fill="none"
+          stroke={stroke}
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+        <path d="M25 6l-8 4.5v-9z" fill={stroke} />
+      </svg>
+    </div>
+  );
+}
+
+function palette(dark: boolean) {
+  return {
+    box: dark ? "border-paper/25 bg-paper/[0.06]" : "border-rule bg-paper",
+    heading: dark ? "text-paper" : "text-clinical-deep",
+    body: dark ? "text-paper/75" : "text-ink-soft",
+    accent: dark ? "bg-paper" : "bg-clinical",
+    line: dark ? "bg-paper/35" : "bg-clinical/40",
+  };
+}
+
+function NodeBox({
+  node,
+  dark,
+  className = "",
+}: {
+  node: DiagramNode;
+  dark: boolean;
+  className?: string;
+}) {
+  const c = palette(dark);
+  return (
+    <div
+      className={`flex min-w-0 flex-col rounded-[0.9cqw] border ${c.box} px-[1.9cqw] py-[1.5cqw] ${className}`}
+    >
+      <span
+        className={`text-[1.85cqw] font-semibold leading-tight ${c.heading}`}
+      >
+        {node.heading}
+      </span>
+      {node.body && (
+        <span className={`mt-[0.7cqw] text-[1.5cqw] leading-snug ${c.body}`}>
+          {node.body}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Hub in the centre-left, branches on the right, converging to an outcome. */
+function Mechanism({
+  slide,
+  nodes,
+  dark,
+}: {
+  slide: Slide;
+  nodes: DiagramNode[];
+  dark: boolean;
+}) {
+  const c = palette(dark);
+  const branches = nodes.slice(0, 4);
+
+  return (
+    <div className="flex flex-1 items-stretch gap-[1.4cqw]">
+      {slide.hub && (
+        <div className="flex w-[24cqw] shrink-0 items-center">
+          <div
+            className={`w-full rounded-[1.1cqw] border-[0.25cqw] ${
+              dark ? "border-paper/50 bg-paper/10" : "border-clinical bg-clinical/[0.07]"
+            } px-[2cqw] py-[2.2cqw] text-center`}
+          >
+            <span
+              className={`text-[2.1cqw] font-semibold leading-tight ${c.heading}`}
+            >
+              {slide.hub}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {slide.hub && <Arrow direction="right" dark={dark} />}
+
+      <div className="flex flex-1 flex-col justify-center gap-[1.3cqw]">
+        <div
+          className="grid gap-[1.3cqw]"
+          style={{
+            // Three branches in a 2-column grid leave a hole; stack them.
+            gridTemplateColumns: branches.length >= 4 ? "1fr 1fr" : "1fr",
+          }}
+        >
+          {branches.map((node, i) => (
+            <NodeBox key={i} node={node} dark={dark} />
+          ))}
+        </div>
+
+        {slide.outcome && (
+          <>
+            <Arrow direction="down" dark={dark} />
+            <div
+              className={`rounded-[0.9cqw] ${c.accent} px-[2cqw] py-[1.2cqw] text-center`}
+            >
+              <span
+                className={`text-[1.95cqw] font-semibold uppercase tracking-[0.08em] ${
+                  dark ? "text-ink" : "text-paper"
+                }`}
+              >
+                {slide.outcome}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Ordered steps, left to right, with numbered chips and connectors. */
+function Flow({ nodes, dark }: { nodes: DiagramNode[]; dark: boolean }) {
+  const c = palette(dark);
+  const steps = nodes.slice(0, 5);
+
+  return (
+    <div className="flex flex-1 items-center gap-[1cqw]">
+      {steps.map((node, i) => (
+        <div key={i} className="flex min-w-0 flex-1 items-center gap-[1cqw]">
+          <div className="min-w-0 flex-1">
+            <div
+              className={`flex h-[3.4cqw] w-[3.4cqw] items-center justify-center rounded-full ${c.accent}`}
+            >
+              <span
+                className={`text-[1.7cqw] font-semibold tabular-nums ${
+                  dark ? "text-ink" : "text-paper"
+                }`}
+              >
+                {i + 1}
+              </span>
+            </div>
+            <NodeBox node={node} dark={dark} className="mt-[1.1cqw]" />
+          </div>
+          {i < steps.length - 1 && (
+            <div className={`h-[0.22cqw] w-[2.2cqw] shrink-0 ${c.line}`} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Unordered parallel blocks. */
+function Cards({ nodes, dark }: { nodes: DiagramNode[]; dark: boolean }) {
+  const cards = nodes.slice(0, 6);
+  const columns = cards.length <= 4 ? 2 : 3;
+
+  return (
+    <div
+      className="grid flex-1 content-center gap-[1.5cqw]"
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+    >
+      {cards.map((node, i) => (
+        <NodeBox key={i} node={node} dark={dark} />
+      ))}
+    </div>
+  );
+}

@@ -4,7 +4,16 @@ export type SlideLayout =
   | "topicos"
   | "destaque"
   | "comparacao"
-  | "encerramento";
+  | "encerramento"
+  | "mecanismo"
+  | "fluxo"
+  | "cards";
+
+/** A box in a diagram layout: heading plus one short explanatory line. */
+export type DiagramNode = {
+  heading: string;
+  body?: string;
+};
 
 export type Slide = {
   layout: SlideLayout;
@@ -16,6 +25,13 @@ export type Slide = {
   stat?: { value: string; label: string };
   notes?: string;
   source?: string;
+  /**
+   * Diagram content. `mecanismo` uses hub + nodes + outcome, `fluxo` and
+   * `cards` use nodes alone.
+   */
+  hub?: string;
+  nodes?: DiagramNode[];
+  outcome?: string;
   /** Short English search terms for a stock photo, when the slide wants one. */
   imageQuery?: string;
   /** Photo credit, shown small on the slide. */
@@ -45,7 +61,31 @@ const LAYOUTS: SlideLayout[] = [
   "destaque",
   "comparacao",
   "encerramento",
+  "mecanismo",
+  "fluxo",
+  "cards",
 ];
+
+/** Diagram layouts are only renderable with nodes; without them they degrade. */
+export const DIAGRAM_LAYOUTS: SlideLayout[] = ["mecanismo", "fluxo", "cards"];
+
+function cleanNodes(value: unknown): DiagramNode[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const nodes = value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const raw = item as Record<string, unknown>;
+      if (typeof raw.heading !== "string" || raw.heading.trim() === "") {
+        return null;
+      }
+      const node: DiagramNode = { heading: raw.heading };
+      if (typeof raw.body === "string" && raw.body) node.body = raw.body;
+      return node;
+    })
+    .filter((node): node is DiagramNode => node !== null);
+  // More than six boxes stops being a diagram and becomes a table.
+  return nodes.length > 0 ? nodes.slice(0, 6) : undefined;
+}
 
 function cleanStrings(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined;
@@ -95,6 +135,16 @@ export function sanitizeSlide(value: unknown): Slide | null {
     if (typeof stat.value === "string" && typeof stat.label === "string") {
       slide.stat = { value: stat.value, label: stat.label };
     }
+  }
+
+  const nodes = cleanNodes(raw.nodes);
+  if (nodes) slide.nodes = nodes;
+  if (typeof raw.hub === "string" && raw.hub) slide.hub = raw.hub;
+  if (typeof raw.outcome === "string" && raw.outcome) slide.outcome = raw.outcome;
+
+  // A diagram layout with nothing to draw would render as an empty frame.
+  if (DIAGRAM_LAYOUTS.includes(slide.layout) && !slide.nodes) {
+    slide.layout = "topicos";
   }
 
   if (typeof raw.notes === "string" && raw.notes) slide.notes = raw.notes;
@@ -221,6 +271,9 @@ export const DECK_SCHEMA = {
               "destaque",
               "comparacao",
               "encerramento",
+              "mecanismo",
+              "fluxo",
+              "cards",
             ],
           },
           title: { type: "STRING" },
@@ -236,6 +289,20 @@ export const DECK_SCHEMA = {
             },
             required: ["value", "label"],
           },
+          hub: { type: "STRING" },
+          nodes: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                heading: { type: "STRING" },
+                body: { type: "STRING" },
+              },
+              required: ["heading"],
+              propertyOrdering: ["heading", "body"],
+            },
+          },
+          outcome: { type: "STRING" },
           notes: { type: "STRING" },
           source: { type: "STRING" },
           imageQuery: { type: "STRING" },
@@ -249,6 +316,9 @@ export const DECK_SCHEMA = {
           "bullets",
           "left",
           "right",
+          "hub",
+          "nodes",
+          "outcome",
           "notes",
           "source",
           "imageQuery",
@@ -296,11 +366,35 @@ Quem lê seus slides está numa sala, à distância, com pouco tempo. O slide é
 - Use \`comparacao\` (com \`left\` e \`right\`) para antes/depois, opção A vs B, indicações vs contraindicações.
 - \`topicos\` é o resto.
 
+### Diagramas
+
+Três layouts desenham um esquema em vez de listar texto. **Use-os** — um
+diagrama bem feito vale mais que três slides de tópicos, e é o que separa uma
+aula de um amontoado de bullets. Numa apresentação de 10+ slides, use pelo menos
+um.
+
+- \`mecanismo\` — um conceito central (\`hub\`) que se abre em 3 a 4 vias
+  (\`nodes\`) e converge para um resultado (\`outcome\`). É o layout de
+  fisiopatologia e de mecanismo de ação.
+  Ex.: hub \`Agonista de GLP-1\`; nodes \`Natriurese e diurese\`,
+  \`Vasodilatação\`, \`Inibição do SRAA\`; outcome \`Redução da pressão arterial\`.
+- \`fluxo\` — 3 a 5 etapas em sequência (\`nodes\`), na ordem em que acontecem.
+  É o layout de protocolo, algoritmo e conduta passo a passo.
+  Ex.: \`Triagem\` → \`Lactato e culturas\` → \`Antibiótico na 1ª hora\` →
+  \`Reavaliar perfusão\`.
+- \`cards\` — 3 a 6 blocos paralelos sem ordem entre si (\`nodes\`). É o layout de
+  critérios, pilares, classes terapêuticas.
+
+Em todos, cada \`node\` tem \`heading\` (2 a 5 palavras) e \`body\` (uma linha, até
+14 palavras). Não escreva parágrafo dentro de um nó — o texto longo vai para
+\`notes\`. Um diagrama não usa \`bullets\`.
+
 ## Imagens (\`imageQuery\`)
 
 Preencha \`imageQuery\` em **todo** slide que se beneficie de uma foto: sempre na
 capa e nos slides de \`secao\`, e na maioria dos \`topicos\` e \`destaque\`. Deixe
-vazio só em \`comparacao\`.
+vazio em \`comparacao\` e nos diagramas (\`mecanismo\`, \`fluxo\`, \`cards\`) — esses
+já têm peso visual próprio, e uma foto atrás deles só atrapalha a leitura.
 
 \`imageQuery\` **não** é um prompt — é uma busca em banco de fotos. Escreva
 **2 a 4 palavras em inglês**, concretas e fotografáveis.

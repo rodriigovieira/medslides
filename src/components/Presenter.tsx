@@ -1,18 +1,47 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Deck } from "@/lib/deck";
 import { SlideView } from "./SlideView";
 
+/**
+ * One presenter for both contexts. On a phone the slide fills the width, you
+ * advance by tapping a side or swiping, and the chrome is icon-sized and
+ * inside the safe area — the desktop build put keyboard hints like "Sair (Esc)"
+ * on a touch device and ran the buttons off the edge of the screen.
+ */
 export function Presenter({ deck, onExit }: { deck: Deck; onExit: () => void }) {
   const [index, setIndex] = useState(0);
   const [showNotes, setShowNotes] = useState(false);
+  const [chromeVisible, setChromeVisible] = useState(true);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const hideTimer = useRef<number | null>(null);
+
+  const total = deck.slides.length;
+  const slide = deck.slides[index];
+
+  // Auto-hide the controls while presenting; any interaction brings them back.
+  const wakeChrome = useCallback(() => {
+    setChromeVisible(true);
+    if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    hideTimer.current = window.setTimeout(() => setChromeVisible(false), 2800);
+  }, []);
 
   const move = useCallback(
-    (delta: number) =>
-      setIndex((i) => Math.min(deck.slides.length - 1, Math.max(0, i + delta))),
-    [deck.slides.length],
+    (delta: number) => {
+      setIndex((i) => Math.min(total - 1, Math.max(0, i + delta)));
+      wakeChrome();
+    },
+    [total, wakeChrome],
   );
+
+  // Arms the first auto-hide. Every later wake comes from an interaction
+  // handler, so nothing sets state synchronously inside an effect.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setChromeVisible(false), 2800);
+    hideTimer.current = timer;
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -32,60 +61,139 @@ export function Presenter({ deck, onExit }: { deck: Deck; onExit: () => void }) 
     return () => window.removeEventListener("keydown", onKey);
   }, [move, onExit]);
 
-  const slide = deck.slides[index];
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    // Horizontal swipes navigate; vertical ones are left to the notes sheet.
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) {
+      move(dx < 0 ? 1 : -1);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-ink">
-      <div className="flex flex-1 items-center justify-center p-4 sm:p-8">
-        <div className="w-full max-w-[min(100%,calc((100vh-13rem)*16/9))] shadow-2xl">
-          <SlideView slide={slide} index={index} total={deck.slides.length} />
+    <div
+      className="fixed inset-0 z-50 flex flex-col bg-[#0a141e] select-none"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onMouseMove={wakeChrome}
+    >
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+        {/* Portrait phones get the full width; taller viewports cap by height
+            so the slide never overflows behind the controls. */}
+        <div className="w-full px-0 sm:px-6 md:max-w-[min(100%,calc((100vh-11rem)*16/9))]">
+          <SlideView slide={slide} index={index} total={total} />
         </div>
+
+        {/* Tap zones — the whole left/right thirds, so no aiming required. */}
+        <button
+          aria-label="Slide anterior"
+          onClick={() => move(-1)}
+          className="absolute inset-y-0 left-0 w-1/3 cursor-w-resize focus:outline-none"
+        />
+        <button
+          aria-label="Próximo slide"
+          onClick={() => move(1)}
+          className="absolute inset-y-0 right-0 w-1/3 cursor-e-resize focus:outline-none"
+        />
       </div>
 
-      {showNotes && slide.notes && (
-        <div className="mx-auto mb-2 max-w-4xl px-6 text-center text-sm leading-relaxed text-paper/70">
-          {slide.notes}
+      {showNotes && (
+        <div
+          className="max-h-[38vh] overflow-y-auto border-t border-paper/15 bg-[#0e1b28] px-5 py-4"
+          style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+        >
+          <p className="text-xs font-medium uppercase tracking-wider text-paper/45">
+            Notas
+          </p>
+          <p className="mt-2 text-[15px] leading-relaxed text-paper/80">
+            {slide.notes || "—"}
+          </p>
         </div>
       )}
 
-      <div className="flex items-center justify-center gap-3 pb-6 pt-2 text-paper/70">
-        <PresenterButton onClick={() => move(-1)} disabled={index === 0}>
-          ← Anterior
-        </PresenterButton>
-        <span className="min-w-20 text-center text-sm tabular-nums">
-          {index + 1} / {deck.slides.length}
-        </span>
-        <PresenterButton
-          onClick={() => move(1)}
-          disabled={index === deck.slides.length - 1}
+      <div
+        className={`flex items-center justify-between gap-2 px-3 pt-2 transition-opacity duration-300 ${
+          chromeVisible || showNotes ? "opacity-100" : "opacity-0"
+        }`}
+        style={{ paddingBottom: "calc(0.6rem + env(safe-area-inset-bottom))" }}
+      >
+        <IconButton label="Sair" onClick={onExit}>
+          <path d="M6 6l8 8M14 6l-8 8" />
+        </IconButton>
+
+        <div className="flex items-center gap-2">
+          <IconButton
+            label="Anterior"
+            onClick={() => move(-1)}
+            disabled={index === 0}
+          >
+            <path d="M12 4l-6 6 6 6" />
+          </IconButton>
+          <span className="min-w-16 text-center text-sm tabular-nums text-paper/70">
+            {index + 1} / {total}
+          </span>
+          <IconButton
+            label="Próximo"
+            onClick={() => move(1)}
+            disabled={index === total - 1}
+          >
+            <path d="M8 4l6 6-6 6" />
+          </IconButton>
+        </div>
+
+        <IconButton
+          label="Notas"
+          onClick={() => setShowNotes((v) => !v)}
+          active={showNotes}
         >
-          Próximo →
-        </PresenterButton>
-        <PresenterButton onClick={() => setShowNotes((v) => !v)}>
-          Notas (N)
-        </PresenterButton>
-        <PresenterButton onClick={onExit}>Sair (Esc)</PresenterButton>
+          <path d="M5 5h10M5 10h10M5 15h6" />
+        </IconButton>
       </div>
     </div>
   );
 }
 
-function PresenterButton({
-  children,
+function IconButton({
+  label,
   onClick,
   disabled,
+  active,
+  children,
 }: {
-  children: React.ReactNode;
+  label: string;
   onClick: () => void;
   disabled?: boolean;
+  active?: boolean;
+  children: React.ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className="rounded-lg border border-paper/20 px-3.5 py-2 text-sm transition hover:bg-paper/10 disabled:opacity-25"
+      aria-label={label}
+      title={label}
+      // 44px minimum: the previous text buttons were below the touch target
+      // size and overflowed the viewport on a phone.
+      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition disabled:opacity-25 ${
+        active
+          ? "border-paper/60 bg-paper/15 text-paper"
+          : "border-paper/20 text-paper/75 active:bg-paper/10"
+      }`}
     >
-      {children}
+      <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden>
+        <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          {children}
+        </g>
+      </svg>
     </button>
   );
 }

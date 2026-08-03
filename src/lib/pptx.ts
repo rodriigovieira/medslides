@@ -1,5 +1,7 @@
 import type PptxGenJS from "pptxgenjs";
-import type { Deck, Slide } from "./deck";
+import { DIAGRAM_LAYOUTS, type Deck, type Slide } from "./deck";
+import { composeSlideImage, treatmentFor, type Treatment } from "./compose";
+import { renderDiagram } from "./pptxDiagram";
 
 /** pptxgenjs doesn't export its slide type, so derive it from `addSlide`. */
 type PptxSlide = ReturnType<InstanceType<typeof PptxGenJS>["addSlide"]>;
@@ -11,6 +13,9 @@ const PAPER = "FFFEFB";
 const CLINICAL = "0D7A6F";
 const CLINICAL_DEEP = "085A52";
 const INK_DEEP = "0A141E";
+// Pre-dimmed instead of using `transparency`, which some viewers drop.
+const PAPER_FAINT = "9AA6B2";
+const PAPER_MUTED = "CFD6DD";
 const SIGNAL = "C2603A";
 
 // LAYOUT_16x9 is 10 x 5.625 inches.
@@ -31,53 +36,27 @@ function slugify(text: string): string {
   );
 }
 
-/**
- * pptxgenjs can take a remote URL, but it fetches at write time with no error
- * surface — a slow or CORS-blocked image silently produces a blank slide. Doing
- * the fetch here means a failure just drops the backdrop.
- */
-async function fetchImageData(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return await new Promise<string | null>((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () =>
-        resolve(typeof reader.result === "string" ? reader.result : null);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
-}
-
-type Treatment = "full" | "panel" | "none";
-
-/** Mirrors `imageTreatment` in SlideView so the file matches the preview. */
-function treatmentFor(slide: Slide, hasImage: boolean): Treatment {
-  if (!hasImage) return "none";
-  if (slide.layout === "capa" || slide.layout === "secao") return "full";
-  if (slide.layout === "destaque") return "full";
-  if (slide.layout === "comparacao") return "none";
-  return "panel";
-}
-
 export async function exportPptx(deck: Deck) {
   const { default: PptxGenJS } = await import("pptxgenjs");
   const pptx = new PptxGenJS();
   pptx.layout = "LAYOUT_16x9";
   pptx.title = deck.title;
 
-  const images = await Promise.all(
+  // Flatten photo + scrim into one picture per slide (see compose.ts).
+  const composed = await Promise.all(
     deck.slides.map((slide) =>
-      slide.imageUrl ? fetchImageData(slide.imageUrl) : Promise.resolve(null),
+      slide.imageUrl
+        ? composeSlideImage(
+            slide.imageUrl,
+            slide,
+            treatmentFor(slide, true),
+          )
+        : Promise.resolve(null),
     ),
   );
 
   deck.slides.forEach((slide, index) => {
-    const image = images[index];
+    const image = composed[index];
     const treatment = treatmentFor(slide, Boolean(image));
     const onDark = treatment === "full";
     const dark =
@@ -86,42 +65,8 @@ export async function exportPptx(deck: Deck) {
     const s = pptx.addSlide();
     s.background = { color: dark ? INK_DEEP : PAPER };
 
-    if (image && treatment === "full") {
+    if (image) {
       s.addImage({ data: image, x: 0, y: 0, w: W, h: H });
-      // PowerPoint shapes can't hold a CSS gradient, so the wash is a light
-      // full-bleed layer plus a denser band under the text.
-      s.addShape("rect", {
-        x: 0,
-        y: 0,
-        w: W,
-        h: H,
-        fill: { color: INK_DEEP, transparency: 42 },
-        line: { type: "none" },
-      });
-      if (slide.layout === "capa") {
-        s.addShape("rect", {
-          x: 0,
-          y: H * 0.42,
-          w: W,
-          h: H * 0.58,
-          fill: { color: INK_DEEP, transparency: 18 },
-          line: { type: "none" },
-        });
-      } else {
-        s.addShape("rect", {
-          x: 0,
-          y: 0,
-          w: W * 0.62,
-          h: H,
-          fill: { color: INK_DEEP, transparency: 20 },
-          line: { type: "none" },
-        });
-      }
-    }
-
-    if (image && treatment === "panel") {
-      const panelW = W * 0.41;
-      s.addImage({ data: image, x: W - panelW, y: 0, w: panelW, h: H });
     }
 
     renderSlide(s, slide, dark, treatment);
@@ -142,8 +87,7 @@ export async function exportPptx(deck: Deck) {
         h: 0.3,
         align: "right",
         fontSize: 9,
-        color: dark ? PAPER : INK_FAINT,
-        transparency: dark ? 45 : 0,
+        color: dark ? PAPER_FAINT : INK_FAINT,
       });
     }
 
@@ -154,8 +98,7 @@ export async function exportPptx(deck: Deck) {
         w: CONTENT_W - 1.4,
         h: 0.3,
         fontSize: 9,
-        color: dark ? PAPER : INK_FAINT,
-        transparency: dark ? 45 : 0,
+        color: dark ? PAPER_FAINT : INK_FAINT,
       });
     }
 
@@ -187,6 +130,17 @@ function renderSlide(
         lineSpacingMultiple: 1.15,
       },
     }));
+
+  if (DIAGRAM_LAYOUTS.includes(slide.layout)) {
+    addHeading(s, slide, dark, CONTENT_W);
+    renderDiagram(s, slide, dark, {
+      x: MARGIN,
+      y: 1.85,
+      w: CONTENT_W,
+      h: H - 1.85 - 0.75,
+    });
+    return;
+  }
 
   switch (slide.layout) {
     case "capa": {
@@ -242,8 +196,7 @@ function renderSlide(
           w: CONTENT_W * 0.8,
           h: 0.9,
           fontSize: 14,
-          color: PAPER,
-          transparency: 25,
+          color: PAPER_MUTED,
           valign: "top",
         });
       }
@@ -258,8 +211,7 @@ function renderSlide(
         h: 0.4,
         fontSize: 12,
         charSpacing: 2,
-        color: PAPER,
-        transparency: 30,
+        color: PAPER_FAINT,
       });
       if (slide.stat) {
         s.addText(slide.stat.value, {
@@ -277,8 +229,7 @@ function renderSlide(
           w: CONTENT_W * 0.85,
           h: 0.8,
           fontSize: 16,
-          color: PAPER,
-          transparency: 15,
+          color: PAPER_MUTED,
           valign: "top",
         });
       }
