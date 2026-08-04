@@ -8,7 +8,7 @@ import {
   type Slide,
 } from "@/lib/deck";
 import { fitSlide, sized } from "@/lib/fit";
-import { scrimFor, treatmentFor } from "@/lib/compose";
+import { scrimFor, treatmentFor, type Treatment } from "@/lib/compose";
 import { Editable, type EditHandler } from "./Editable";
 import { useSlideMarks } from "./Motion";
 
@@ -54,11 +54,18 @@ export function SlideView({
   ).length;
   const fit = fitSlide({
     slide,
-    panel: treatment === "panel",
+    panel: treatment === "panel" || treatment === "panelLeft",
     hasRefs: citedCount > 0,
   });
   const onDark = Boolean(image) && treatment === "full";
-  const dark = onDark || slide.layout === "secao" || slide.layout === "destaque";
+  // A centred illustration forces a light slide. It is drawn on white and
+  // composited with `multiply`, which against a near-black background renders it
+  // as very nearly nothing — the first attempt put the heart on a `secao` and it
+  // came out a black shape on a black slide. Same family of rule as "an
+  // illustration never goes under the full-bleed scrim".
+  const dark =
+    (onDark || slide.layout === "secao" || slide.layout === "destaque") &&
+    treatment !== "centre";
 
   return (
     <div
@@ -81,11 +88,40 @@ export function SlideView({
         </div>
       )}
 
-      {image && treatment === "panel" && (
+      {image && treatment === "centre" && (
+        // The state a travelling picture starts in: large, centred, alone. The
+        // motion engine matches it to the same URL on the next slide, so this is
+        // what the audience watches fly to the side as the diagram resolves.
+        // Marked as a shared image like any other placement — that mark is the
+        // whole mechanism.
+        <div className="absolute inset-x-0 bottom-[7cqw] top-[20cqw] flex items-center justify-center">
+          {/* The mark goes on the box the picture actually occupies, not on the
+              centring container. Marked on the container, the shared box was the
+              full slide width on this slide and the panel width on the next, so
+              the engine tweened a rectangle the audience could not see while the
+              heart itself cut. The shared element has to *be* the thing that
+              moves. */}
+          <div
+            // Deliberately much larger than the 41cqw panel it flies to. At
+            // 44cqw the move measured 545px → 508px: the heart crossed the slide
+            // but barely changed size, so it read as sliding rather than as one
+            // object being set down. The shrink is what makes it a hero.
+            className="h-[64cqw] w-[64cqw] overflow-hidden"
+            {...marks.sharedImage(image)}
+          >
+            <Img
+              src={image}
+              className="h-full w-full !object-contain mix-blend-multiply"
+            />
+          </div>
+        </div>
+      )}
+
+      {image && (treatment === "panel" || treatment === "panelLeft") && (
         <div
-          className={`absolute inset-y-0 right-0 w-[41cqw] overflow-hidden ${
-            slide.imageStyle === "ilustracao" ? "bg-paper-raised" : ""
-          }`}
+          className={`absolute inset-y-0 w-[41cqw] overflow-hidden ${
+            treatment === "panelLeft" ? "left-0" : "right-0"
+          } ${slide.imageStyle === "ilustracao" ? "bg-paper-raised" : ""}`}
           {...marks.sharedImage(image)}
         >
           {/* A photograph bleeds off the panel; an illustration is a whole
@@ -103,12 +139,16 @@ export function SlideView({
                 : ""
             }`}
           />
-          {/* Feathered inner edge so the panel reads as part of the page. */}
+          {/* Feathered inner edge so the panel reads as part of the page. It
+              faces the text, so it flips with the panel. */}
           <div
-            className="absolute inset-y-0 left-0 w-[9cqw]"
+            className={`absolute inset-y-0 w-[9cqw] ${
+              treatment === "panelLeft" ? "right-0" : "left-0"
+            }`}
             style={{
-              background:
-                "linear-gradient(to right, #fffefb 0%, rgba(255,254,251,0.55) 55%, rgba(255,254,251,0) 100%)",
+              background: `linear-gradient(to ${
+                treatment === "panelLeft" ? "left" : "right"
+              }, #fffefb 0%, rgba(255,254,251,0.55) 55%, rgba(255,254,251,0) 100%)`,
             }}
           />
         </div>
@@ -116,7 +156,11 @@ export function SlideView({
 
       <div
         className={`absolute inset-0 flex flex-col ${
-          treatment === "panel" ? "pl-[7cqw] pr-[46cqw]" : "px-[7cqw]"
+          treatment === "panel"
+            ? "pl-[7cqw] pr-[46cqw]"
+            : treatment === "panelLeft"
+              ? "pl-[46cqw] pr-[7cqw]"
+              : "px-[7cqw]"
         }`}
         style={{
           paddingTop: "6.5cqw",
@@ -172,7 +216,7 @@ function Footer({
   index: number;
   total: number;
   dark: boolean;
-  treatment: "full" | "panel" | "none";
+  treatment: Treatment;
   references?: Reference[];
 }) {
   const faint = dark ? "text-paper/55" : "text-ink-faint";
@@ -184,11 +228,12 @@ function Footer({
   // With a photo panel on the right, the page number has to stay in the text
   // column — over the photo it's unreadable.
   const numberRight = treatment === "panel" ? "right-[44cqw]" : "right-[7cqw]";
+  const numberSide = treatment === "panelLeft" ? "right-[7cqw]" : numberRight;
   return (
     <>
       {cited.length > 0 && (
         <div
-          className={`absolute bottom-[2.6cqw] left-[7cqw] max-w-[62cqw] space-y-[0.3cqw] text-[1.25cqw] leading-tight ${faint}`}
+          className={`absolute bottom-[2.6cqw] ${treatment === "panelLeft" ? "left-[46cqw] max-w-[46cqw]" : "left-[7cqw] max-w-[62cqw]"} space-y-[0.3cqw] text-[1.25cqw] leading-tight ${faint}`}
         >
           {cited.map((ref) => (
             <div key={ref.n} className="truncate">
@@ -201,7 +246,7 @@ function Footer({
       )}
       {slide.layout !== "capa" && (
         <div
-          className={`absolute bottom-[3.2cqw] ${numberRight} text-[1.45cqw] tabular-nums ${faint}`}
+          className={`absolute bottom-[3.2cqw] ${numberSide} text-[1.45cqw] tabular-nums ${faint}`}
         >
           {index + 1} / {total}
         </div>

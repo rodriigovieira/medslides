@@ -53,6 +53,8 @@ export const slideValidator = v.object({
    * full-bleed scrim, which would bury it.
    */
   imageStyle: v.optional(v.string()),
+  /** Overrides where the picture sits — see `imagePlacement` in deck.ts. */
+  imagePlacement: v.optional(v.string()),
   /**
    * Legacy: decks generated before the switch from AI image generation to stock
    * photography carry this. Nothing writes it any more, but removing it from the
@@ -203,6 +205,17 @@ export default defineSchema({
     ),
     fetchedAt: v.number(),
   }).index("by_query", ["query"]),
+
+  /**
+   * Artwork for the showcase deck, generated once and reused by every demo.
+   * Keyed by name so regenerating is a deliberate act rather than a side effect
+   * of someone clicking the demo button again.
+   */
+  demoAssets: defineTable({
+    name: v.string(),
+    storageId: v.id("_storage"),
+    madeAt: v.number(),
+  }).index("by_name", ["name"]),
 
   // Anonymous product, so the only spend guards are a per-browser quota and a
   // global daily ceiling. Both are best-effort: clientId is client-generated.

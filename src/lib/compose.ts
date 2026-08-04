@@ -1,6 +1,6 @@
 import { DIAGRAM_LAYOUTS, type Slide, type SlideLayout } from "./deck";
 
-export type Treatment = "full" | "panel" | "none";
+export type Treatment = "full" | "panel" | "panelLeft" | "centre" | "none";
 
 /**
  * How a slide uses its photo. The single source of truth: the renderer, the
@@ -17,6 +17,12 @@ export type Treatment = "full" | "panel" | "none";
  */
 export function treatmentFor(slide: Slide, hasImage: boolean): Treatment {
   if (!hasImage) return "none";
+  // An explicit placement wins. It exists so one picture can be staged large and
+  // centred on one slide and small at the side on the next: the motion engine
+  // matches images across slides by URL, so the same file in two placements
+  // reads as one object *moving* rather than two pictures being swapped.
+  if (slide.imagePlacement === "centro") return "centre";
+  if (slide.imagePlacement === "esquerda") return "panelLeft";
   // An illustration is drawn on white and is the point of its own frame. Under
   // the full-bleed scrim it would be a dark rectangle with a ghost in it, so it
   // always takes the panel — beside the text, on the page, as in a journal.
@@ -166,15 +172,25 @@ export async function composeSlideImage(
     ctx.fillStyle = PAPER;
     ctx.fillRect(0, 0, OUT_W, OUT_H);
 
-    const panelW = OUT_W * 0.41;
-    const panelX = OUT_W - panelW;
+    // `centre` is a whole-canvas placement rather than a side panel; the others
+    // are the same panel on one side or the other. The .pptx has no motion, so
+    // each of these exports as the still frame it is — which is exactly right:
+    // the printed deck shows the picture where it ends up.
+    const centre = treatment === "centre";
+    const panelW = centre ? OUT_W * 0.44 : OUT_W * 0.41;
+    const panelX =
+      centre
+        ? (OUT_W - panelW) / 2
+        : treatment === "panelLeft"
+          ? 0
+          : OUT_W - panelW;
 
-    if (slide.imageStyle === "ilustracao") {
+    if (slide.imageStyle === "ilustracao" || centre) {
       // Contain, not cover — same reason as on screen, and the paper background
       // is already painted, so the letterboxing is invisible.
       const pad = OUT_W * 0.03;
       const boxW = panelW - pad * 2;
-      const boxH = OUT_H - pad * 2;
+      const boxH = OUT_H - pad * 2 - (centre ? OUT_H * 0.1 : 0);
       const scale = Math.min(boxW / img.width, boxH / img.height);
       const dw = img.width * scale;
       const dh = img.height * scale;
@@ -194,13 +210,17 @@ export async function composeSlideImage(
 
     drawCover(ctx, img, panelX, 0, panelW, OUT_H);
 
+    // The feather faces the text, so it starts at whichever edge of the panel
+    // the text is on.
     const featherW = OUT_W * 0.09;
-    const feather = ctx.createLinearGradient(panelX, 0, panelX + featherW, 0);
+    const inner = treatment === "panelLeft" ? panelW : panelX;
+    const dir = treatment === "panelLeft" ? -featherW : featherW;
+    const feather = ctx.createLinearGradient(inner, 0, inner + dir, 0);
     feather.addColorStop(0, PAPER);
     feather.addColorStop(0.55, "rgba(255,254,251,0.55)");
     feather.addColorStop(1, "rgba(255,254,251,0)");
     ctx.fillStyle = feather;
-    ctx.fillRect(panelX, 0, featherW, OUT_H);
+    ctx.fillRect(Math.min(inner, inner + dir), 0, featherW, OUT_H);
   }
 
   return canvas.toDataURL("image/jpeg", 0.86);

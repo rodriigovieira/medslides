@@ -117,6 +117,15 @@ export type Slide = {
   imageSource?: string;
   /** "ilustracao" for drawn art; absent or "foto" for photography. */
   imageStyle?: string;
+  /**
+   * Where the picture sits, when it should not sit where its layout would put
+   * it. `"centro"` is the big centred state a shared image travels *from*;
+   * `"esquerda"` mirrors the side panel so a diagram can occupy the right.
+   *
+   * Optional and a plain string, like every other stored vocabulary here: an
+   * unknown value falls back to the layout's own choice rather than failing.
+   */
+  imagePlacement?: string;
   /** Resolved after generation; the renderer decides how to use it per layout. */
   imageUrl?: string;
   /** Screen-only motion. Absent means the default build — see `motion.ts`. */
@@ -288,6 +297,9 @@ export function sanitizeSlide(value: unknown): Slide | null {
   }
   if (typeof raw.imageStyle === "string" && raw.imageStyle) {
     slide.imageStyle = raw.imageStyle;
+  }
+  if (typeof raw.imagePlacement === "string" && raw.imagePlacement) {
+    slide.imagePlacement = raw.imagePlacement;
   }
   if (typeof raw.imageUrl === "string" && raw.imageUrl) {
     slide.imageUrl = raw.imageUrl;
